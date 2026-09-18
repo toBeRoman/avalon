@@ -1,0 +1,9 @@
+{
+  "id": "win-good",
+  "hash": "dbc3ba8ebceda8dd",
+  "model": "gpt-4o-mini-tts",
+  "voice": "marin",
+  "instructions": "A storyteller at a campfire, late at night. Warm, low and unhurried, with the weight of someone who already knows how this ends. Never theatrical, never breathless. Leave a little air around the words.",
+  "text": "Merlin was never found. Camelot stands, and the light holds.",
+  "duration": 4.704
+}

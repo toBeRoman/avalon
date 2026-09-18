@@ -1,0 +1,9 @@
+{
+  "id": "lady",
+  "hash": "b660a88f924c1aa1",
+  "model": "gpt-4o-mini-tts",
+  "voice": "marin",
+  "instructions": "A storyteller at a campfire, late at night. Warm, low and unhurried, with the weight of someone who already knows how this ends. Never theatrical, never breathless. Leave a little air around the words.",
+  "text": "The Lady of the Lake rises. One loyalty will be known, and only to the one who asks.",
+  "duration": 6.36
+}

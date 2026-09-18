@@ -1,0 +1,9 @@
+{
+  "id": "proposal",
+  "hash": "c3d72edea6567446",
+  "model": "gpt-4o-mini-tts",
+  "voice": "marin",
+  "instructions": "A storyteller at a campfire, late at night. Warm, low and unhurried, with the weight of someone who already knows how this ends. Never theatrical, never breathless. Leave a little air around the words.",
+  "text": "Choose who rides out.",
+  "duration": 2.064
+}

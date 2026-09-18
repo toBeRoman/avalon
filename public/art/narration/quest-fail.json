@@ -1,0 +1,9 @@
+{
+  "id": "quest-fail",
+  "hash": "df5c0a788a99b5c0",
+  "model": "gpt-4o-mini-tts",
+  "voice": "marin",
+  "instructions": "A storyteller at a campfire, late at night. Warm, low and unhurried, with the weight of someone who already knows how this ends. Never theatrical, never breathless. Leave a little air around the words.",
+  "text": "Sabotage. There was a traitor among them.",
+  "duration": 3.264
+}

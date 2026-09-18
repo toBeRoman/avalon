@@ -1,0 +1,22 @@
+{
+  "voice": "marin",
+  "model": "gpt-4o-mini-tts",
+  "instructions": "A storyteller at a campfire, late at night. Warm, low and unhurried, with the weight of someone who already knows how this ends. Never theatrical, never breathless. Leave a little air around the words.",
+  "chapters": [
+    { "id": "deal", "text": "The court is seated, and the cards are dealt. Take up your own, and let no one else see it." },
+    { "id": "proposal", "text": "Choose who rides out." },
+    { "id": "vote", "text": "Speak now, all of you at once. Approve, or refuse." },
+    { "id": "vote-approved", "text": "The court consents. The company departs." },
+    { "id": "vote-rejected", "text": "Refused. The choosing passes on." },
+    { "id": "vote-last", "text": "Four refusals stand against you. Refuse once more and Mordred takes the realm without lifting a blade." },
+    { "id": "quest", "text": "The company rides. Play your hand, and be careful who is watching." },
+    { "id": "quest-success", "text": "The quest holds. Arthur's banner still stands." },
+    { "id": "quest-fail", "text": "Sabotage. There was a traitor among them." },
+    { "id": "lady", "text": "The Lady of the Lake rises. One loyalty will be known, and only to the one who asks." },
+    { "id": "assassin", "text": "Three quests have held. Yet the Assassin waits in the dark, and needs only a name." },
+    { "id": "win-good", "text": "Merlin was never found. Camelot stands, and the light holds." },
+    { "id": "win-evil-quests", "text": "Three quests broken. The realm falls to Mordred." },
+    { "id": "win-evil-assassin", "text": "The blade finds Merlin after all. Everything won is undone." },
+    { "id": "win-evil-hammer", "text": "Five times you refused one another. Camelot tears itself apart, and evil needs to do nothing at all." }
+  ]
+}

@@ -231,6 +231,14 @@ invariant directly: a player's private notes may only name someone their own car
 them to know about. Everything in there is a fact about the game so far — deliberately no
 speculation about intent, because a confidently wrong nudge is worse than no nudge.
 
+**On narration**
+
+Narration is pre-rendered by `tools/tts.py` and served as static mp3, never synthesised at
+runtime — so it survives a dead zone, keeps the API key off production entirely, and costs
+nothing per play. The consequence is that lines are fixed and name nobody, which also happens
+to keep the narrator from saying things aloud that some players are not entitled to know.
+Full notes in [NARRATION.md](NARRATION.md).
+
 **On debug mode**
 
 Room code `TOBY` is a reserved debug room: bots, table size, forced roles and x-ray. It is

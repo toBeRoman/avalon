@@ -41,6 +41,13 @@ proposals, votes and quests, and handles the Assassin at the end.
 - The screen is kept awake during a game, and it is all dark and warm so it does not blow out
   anybody's night vision.
 
+## Narration
+
+A narrator reads the game aloud, in the voice **Marin**. The clips are pre-rendered and ship as
+static audio, so it works with no signal and there is no API key in production. On by default
+for the phone that made the room, off for everyone else; the speaker button in the header
+changes that. See [NARRATION.md](NARRATION.md).
+
 ## Testing it on your own
 
 Join with the room code `TOBY` for a debug room: fill the seats with bots, set the table to

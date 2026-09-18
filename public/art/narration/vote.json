@@ -1,0 +1,9 @@
+{
+  "id": "vote",
+  "hash": "8d9d0139846eeb4a",
+  "model": "gpt-4o-mini-tts",
+  "voice": "marin",
+  "instructions": "A storyteller at a campfire, late at night. Warm, low and unhurried, with the weight of someone who already knows how this ends. Never theatrical, never breathless. Leave a little air around the words.",
+  "text": "Speak now, all of you at once. Approve, or refuse.",
+  "duration": 4.656
+}

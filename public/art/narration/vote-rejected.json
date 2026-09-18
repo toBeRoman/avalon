@@ -1,0 +1,9 @@
+{
+  "id": "vote-rejected",
+  "hash": "8d417125db0ffeb5",
+  "model": "gpt-4o-mini-tts",
+  "voice": "marin",
+  "instructions": "A storyteller at a campfire, late at night. Warm, low and unhurried, with the weight of someone who already knows how this ends. Never theatrical, never breathless. Leave a little air around the words.",
+  "text": "Refused. The choosing passes on.",
+  "duration": 2.808
+}

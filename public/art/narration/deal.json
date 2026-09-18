@@ -1,0 +1,9 @@
+{
+  "id": "deal",
+  "hash": "61912bfcfb891c12",
+  "model": "gpt-4o-mini-tts",
+  "voice": "marin",
+  "instructions": "A storyteller at a campfire, late at night. Warm, low and unhurried, with the weight of someone who already knows how this ends. Never theatrical, never breathless. Leave a little air around the words.",
+  "text": "The court is seated, and the cards are dealt. Take up your own, and let no one else see it.",
+  "duration": 6.816
+}

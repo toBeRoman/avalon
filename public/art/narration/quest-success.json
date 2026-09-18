@@ -1,0 +1,9 @@
+{
+  "id": "quest-success",
+  "hash": "8c20bec7c2495cf4",
+  "model": "gpt-4o-mini-tts",
+  "voice": "marin",
+  "instructions": "A storyteller at a campfire, late at night. Warm, low and unhurried, with the weight of someone who already knows how this ends. Never theatrical, never breathless. Leave a little air around the words.",
+  "text": "The quest holds. Arthur's banner still stands.",
+  "duration": 5.112
+}

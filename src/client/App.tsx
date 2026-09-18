@@ -9,6 +9,7 @@ import {
   saveSession,
   type Credentials,
 } from "./session";
+import { useNarration, useNarrationToggle, usePreloadNarration } from "./narration";
 import { useBuzz, useRoom, useWakeLock, type Status } from "./useRoom";
 import {
   ActionSlot,
@@ -66,6 +67,10 @@ function LocalShell({ local }: { local: ReturnType<typeof useLocalGame> }) {
   const [sheet, setSheet] = useState<SheetName>(null);
   const [actionSlot, setActionSlot] = useState<HTMLElement | null>(null);
   const scroller = useScrollReset(`${view?.phase}-${actor?.id}-${handedOver}`);
+  // One device, so the narrator is simply on unless it has been turned off.
+  const [narrating, toggleNarration] = useNarrationToggle(true);
+  useNarration(view, narrating);
+  usePreloadNarration(narrating);
   if (!view) return null;
 
   const body = !handedOver && actor ? (
@@ -91,14 +96,17 @@ function LocalShell({ local }: { local: ReturnType<typeof useLocalGame> }) {
             {view.game ? `Quest ${Math.min(view.game.round, 5)}` : "Table"} ·{" "}
             {view.players.length} players
           </span>
-          <button
-            type="button"
-            onClick={() => setSheet("manage")}
-            aria-label="Table menu"
-            className="rounded-lg px-2 py-1 text-lg leading-none text-dim active:bg-raised"
-          >
-            ⋯
-          </button>
+          <div className="flex items-center gap-1">
+            <NarrationButton on={narrating} onToggle={toggleNarration} />
+            <button
+              type="button"
+              onClick={() => setSheet("manage")}
+              aria-label="Table menu"
+              className="rounded-lg px-2 py-1 text-lg leading-none text-dim active:bg-raised"
+            >
+              ⋯
+            </button>
+          </div>
         </div>
         {view.game ? <QuestBoard view={view} /> : null}
       </header>
@@ -167,10 +175,13 @@ function RoomShell({
   const [sheet, setSheet] = useState<SheetName>(null);
   const [actionSlot, setActionSlot] = useState<HTMLElement | null>(null);
   const scroller = useScrollReset(view?.phase);
+  const [narrating, toggleNarration] = useNarrationToggle(!!view?.you.isHost);
 
   const inGame = !!view && view.phase !== "lobby";
   useWakeLock(inGame);
   useBuzz(!!view && view.waitingOn.includes(view.you.id));
+  useNarration(view, narrating);
+  usePreloadNarration(narrating);
 
   if (status === "evicted") {
     return (
@@ -205,7 +216,13 @@ function RoomShell({
     <div className="flex h-full flex-col">
       <Toast message={error} onDone={clearError} />
 
-      <Header view={view} status={status} onMenu={() => setSheet("manage")} />
+      <Header
+        view={view}
+        status={status}
+        narrating={narrating}
+        onToggleNarration={toggleNarration}
+        onMenu={() => setSheet("manage")}
+      />
 
       <ActionSlot.Provider value={actionSlot}>
         <main ref={scroller} className="flex min-h-0 flex-1 flex-col overflow-y-auto">
@@ -261,6 +278,23 @@ function RoomShell({
   );
 }
 
+/** A speaker that is either narrating or not. Per device, remembered. */
+function NarrationButton({ on, onToggle }: { on: boolean; onToggle: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onToggle}
+      aria-pressed={on}
+      aria-label={on ? "Turn narration off" : "Turn narration on"}
+      className={`rounded-lg px-2 py-1 text-base leading-none transition-colors ${
+        on ? "text-ember" : "text-edge-bright"
+      } active:bg-raised`}
+    >
+      {on ? "🔊" : "🔇"}
+    </button>
+  );
+}
+
 /**
  * A new screen should start at the top. Without this you keep whatever scroll
  * offset the last screen had, which lands you halfway down the next one.
@@ -280,10 +314,14 @@ function useScrollReset(key: unknown) {
 function Header({
   view,
   status,
+  narrating,
+  onToggleNarration,
   onMenu,
 }: {
   view: View;
   status: Status;
+  narrating: boolean;
+  onToggleNarration: () => void;
   onMenu: () => void;
 }) {
   const game = view.game;
@@ -298,8 +336,9 @@ function Header({
         ) : (
           <span className="text-xs uppercase tracking-widest text-dim">Lobby</span>
         )}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1">
           {status !== "open" ? <Tag tone="evil">offline</Tag> : null}
+          <NarrationButton on={narrating} onToggle={onToggleNarration} />
           <button
             type="button"
             onClick={onMenu}

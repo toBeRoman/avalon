@@ -1,0 +1,9 @@
+{
+  "id": "win-evil-hammer",
+  "hash": "46c4d280e371b06d",
+  "model": "gpt-4o-mini-tts",
+  "voice": "marin",
+  "instructions": "A storyteller at a campfire, late at night. Warm, low and unhurried, with the weight of someone who already knows how this ends. Never theatrical, never breathless. Leave a little air around the words.",
+  "text": "Five times you refused one another. Camelot tears itself apart, and evil needs to do nothing at all.",
+  "duration": 7.368
+}

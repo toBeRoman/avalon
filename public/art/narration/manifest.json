@@ -1,0 +1,17 @@
+{
+  "assassin": 5.06,
+  "deal": 6.82,
+  "lady": 6.36,
+  "proposal": 2.06,
+  "quest": 5.45,
+  "quest-fail": 3.26,
+  "quest-success": 5.11,
+  "vote": 4.66,
+  "vote-approved": 4.2,
+  "vote-last": 6.82,
+  "vote-rejected": 2.81,
+  "win-evil-assassin": 4.66,
+  "win-evil-hammer": 7.37,
+  "win-evil-quests": 5.35,
+  "win-good": 4.7
+}

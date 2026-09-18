@@ -1,0 +1,9 @@
+{
+  "id": "vote-last",
+  "hash": "03ce4df5fded27c9",
+  "model": "gpt-4o-mini-tts",
+  "voice": "marin",
+  "instructions": "A storyteller at a campfire, late at night. Warm, low and unhurried, with the weight of someone who already knows how this ends. Never theatrical, never breathless. Leave a little air around the words.",
+  "text": "Four refusals stand against you. Refuse once more and Mordred takes the realm without lifting a blade.",
+  "duration": 6.816
+}
