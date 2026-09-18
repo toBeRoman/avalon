@@ -524,7 +524,11 @@ function insightsFor(
   if (!g || room.phase === "roleReveal") return { table, private: priv };
 
   const name = (id: string) => byId(room, id)?.name ?? "someone";
-  const list = (ids: string[]) => ids.map(name).join(", ");
+  const list = (ids: string[]) => {
+    const names = ids.map(name);
+    if (names.length < 2) return names.join("");
+    return `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}`;
+  };
   const finished = g.quests.filter((q) => q.round !== g.round || room.phase === "ended");
   const succeeded = g.quests.filter((q) => q.success).length;
   const failed = g.quests.length - succeeded;

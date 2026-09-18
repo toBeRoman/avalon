@@ -197,6 +197,13 @@ export function HoldToReveal({
     }
   };
 
+  // Fetch the art up front so the reveal does not flash blank on first hold.
+  useEffect(() => {
+    if (!art) return;
+    const preload = new Image();
+    preload.src = art;
+  }, [art]);
+
   // Let go anywhere — off the element, or because the phone stole focus — and it hides.
   useEffect(() => {
     if (!held) return;
@@ -224,6 +231,7 @@ export function HoldToReveal({
           alt=""
           className="absolute inset-0 h-full w-full object-cover opacity-90"
           draggable={false}
+          decoding="async"
         />
         <div className="absolute inset-0 bg-ink/55" />
         <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 px-6 text-center">
@@ -251,7 +259,7 @@ export function HoldToReveal({
                 />
               ) : null}
               {/* Dark enough to read against, sheer enough to keep the picture. */}
-              <div className="absolute inset-0 bg-linear-to-b from-ink/70 via-ink/80 to-ink/95" />
+              <div className="absolute inset-0 bg-linear-to-b from-ink/50 via-ink/78 to-ink/96" />
               <div
                 className="absolute inset-0 flex flex-col overflow-y-auto overscroll-contain"
                 style={{
@@ -259,7 +267,12 @@ export function HoldToReveal({
                   paddingBottom: "max(1.5rem, env(safe-area-inset-bottom))",
                 }}
               >
-                <div className="m-auto w-full max-w-md px-5">{children}</div>
+                <div
+                  className="m-auto w-full max-w-md px-5"
+                  style={{ textShadow: "0 1px 14px rgba(0,0,0,0.95)" }}
+                >
+                  {children}
+                </div>
                 <p className="shrink-0 pt-4 text-center text-xs text-parchment/60">
                   Lift your finger to hide this
                 </p>

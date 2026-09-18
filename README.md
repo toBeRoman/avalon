@@ -19,8 +19,15 @@ proposals, votes and quests, and handles the Assassin at the end.
 - **Full history.** Every proposal, every vote and every quest result stays scrollable, which
   settles "who rejected round two?" without anyone having to remember.
 - **Built-in coaching** for people who have never played, on every screen.
+- **Insights** that update as the game goes: public deductions anyone could make sit openly in
+  the history, and notes grounded in your own card stay behind the hold-to-reveal.
+- **No signal? Play on one phone.** Pass-and-play runs the same engine entirely in the browser.
+  The device is handed round for anything secret and sits in the middle for everything else.
 
 ## When things go wrong at a campsite
+
+- **No connection at all.** Tap "No signal? Play on one phone" on the first screen. Nothing is
+  sent anywhere; the game lives in the browser and survives a refresh.
 
 - Phones lock and sockets drop constantly. All state lives in the Durable Object, never on a
   phone, and each device holds a token so a refresh, a lock or a lost signal puts you straight
@@ -56,6 +63,7 @@ test/         the engine, including what may and may not go over the wire
 pnpm install
 pnpm dev      # http://localhost:5173
 pnpm check    # typecheck and tests
+pnpm test:e2e # seven clients through two full games against a running server
 pnpm deploy   # build and push to Cloudflare
 ```
 

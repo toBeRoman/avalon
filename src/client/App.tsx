@@ -23,6 +23,8 @@ import {
   Toast,
 } from "./ui";
 import Home from "./screens/Home";
+import { LocalSetup, LocalVote, PassThePhone } from "./screens/Local";
+import { useLocalGame } from "./localGame";
 import Lobby from "./screens/Lobby";
 import Reveal from "./screens/Reveal";
 import Proposal from "./screens/Proposal";
@@ -33,6 +35,8 @@ import { AssassinScreen, EndedScreen } from "./screens/Endgame";
 
 export default function App() {
   const [credentials, setCredentials] = useState<Credentials | null>(loadSession);
+  const local = useLocalGame();
+  const [settingUp, setSettingUp] = useState(false);
 
   const enter = (next: Credentials) => {
     saveSession(next);
@@ -43,8 +47,95 @@ export default function App() {
     setCredentials(null);
   };
 
-  if (!credentials) return <Home onReady={enter} />;
+  if (local.room) return <LocalShell local={local} />;
+  if (settingUp)
+    return <LocalSetup onStart={local.start} onBack={() => setSettingUp(false)} />;
+  if (!credentials)
+    return <Home onReady={enter} onPassAndPlay={() => setSettingUp(true)} />;
   return <RoomShell key={credentials.playerId} credentials={credentials} onLeave={leave} />;
+}
+
+/* ------------------------------------------------------------------ */
+/* Pass and play                                                       */
+/* ------------------------------------------------------------------ */
+
+function LocalShell({ local }: { local: ReturnType<typeof useLocalGame> }) {
+  const { view, actor, handedOver } = local;
+  const [sheet, setSheet] = useState<SheetName>(null);
+  const [actionSlot, setActionSlot] = useState<HTMLElement | null>(null);
+  if (!view) return null;
+
+  const body = !handedOver && actor ? (
+    <PassThePhone actor={actor} onTake={local.takePhone} />
+  ) : view.phase === "vote" ? (
+    <LocalVote view={view} onSubmit={local.castVotes} />
+  ) : (
+    <Phase view={view} send={local.send} />
+  );
+
+  // The role card is only reachable while the phone is in one person's hands.
+  const secretHolder = handedOver && actor?.secret;
+
+  return (
+    <div className="flex h-full flex-col">
+      <Toast message={local.error} onDone={local.clearError} />
+
+      <header className="shrink-0 border-b border-edge bg-surface px-4 pb-3 pt-[max(0.75rem,env(safe-area-inset-top))]">
+        <div className="mb-2 flex items-center justify-between">
+          <span className="font-display text-lg tracking-widest text-ember">One phone</span>
+          <span className="text-xs uppercase tracking-widest text-dim">
+            {view.game ? `Quest ${Math.min(view.game.round, 5)}` : "Table"} ·{" "}
+            {view.players.length} players
+          </span>
+          <button
+            type="button"
+            onClick={() => setSheet("manage")}
+            aria-label="Table menu"
+            className="rounded-lg px-2 py-1 text-lg leading-none text-dim active:bg-raised"
+          >
+            ⋯
+          </button>
+        </div>
+        {view.game ? <QuestBoard view={view} /> : null}
+      </header>
+
+      <ActionSlot.Provider value={actionSlot}>
+        <main className="flex min-h-0 flex-1 flex-col overflow-y-auto">{body}</main>
+        <div
+          ref={setActionSlot}
+          className="shrink-0 border-t border-edge bg-ink px-4 py-3 empty:hidden"
+        />
+      </ActionSlot.Provider>
+
+      {view.game ? (
+        <nav
+          className="flex shrink-0 gap-2 border-t border-edge bg-surface px-4 pt-3"
+          style={{ paddingBottom: "max(0.75rem, env(safe-area-inset-bottom))" }}
+        >
+          {secretHolder ? (
+            <Button small variant="ghost" onClick={() => setSheet("role")}>
+              My card
+            </Button>
+          ) : null}
+          <Button small variant="ghost" onClick={() => setSheet("history")}>
+            History
+          </Button>
+          <Button small variant="quiet" onClick={() => setSheet("rules")}>
+            Rules
+          </Button>
+        </nav>
+      ) : null}
+
+      <Sheets
+        name={sheet}
+        view={view}
+        send={local.send}
+        onClose={() => setSheet(null)}
+        onLeave={local.quit}
+        local
+      />
+    </div>
+  );
 }
 
 /* ------------------------------------------------------------------ */
@@ -255,12 +346,14 @@ function Sheets({
   send,
   onClose,
   onLeave,
+  local,
 }: {
   name: SheetName;
   view: View;
   send: (message: ClientMessage) => void;
   onClose: () => void;
   onLeave: () => void;
+  local?: boolean;
 }) {
   return (
     <>
@@ -278,8 +371,8 @@ function Sheets({
         <Rules options={view.options} />
       </SheetShell>
 
-      <SheetShell open={name === "manage"} onClose={onClose} title="Room">
-        <Manage view={view} send={send} onLeave={onLeave} />
+      <SheetShell open={name === "manage"} onClose={onClose} title={local ? "Table" : "Room"}>
+        <Manage view={view} send={send} onLeave={onLeave} local={local} />
       </SheetShell>
     </>
   );
@@ -290,10 +383,12 @@ function Manage({
   view,
   send,
   onLeave,
+  local,
 }: {
   view: View;
   send: (message: ClientMessage) => void;
   onLeave: () => void;
+  local?: boolean;
 }) {
   const [releasing, setReleasing] = useState(false);
   const [abandoning, setAbandoning] = useState(false);
@@ -339,7 +434,7 @@ function Manage({
         ))}
       </section>
 
-      {view.you.isHost ? (
+      {view.you.isHost && !local ? (
         <section className="space-y-2">
           <h4 className="font-display text-base text-ember">Someone's phone died?</h4>
           <Note>
@@ -371,7 +466,7 @@ function Manage({
         </section>
       ) : null}
 
-      {view.you.isHost && view.phase !== "lobby" ? (
+      {(local || view.you.isHost) && view.phase !== "lobby" ? (
         <section className="space-y-2">
           <h4 className="font-display text-base text-ember">Start over</h4>
           <Note>
@@ -413,13 +508,14 @@ function Manage({
       ) : null}
 
       <section className="space-y-2">
-        <h4 className="font-display text-base text-ember">Leave</h4>
+        <h4 className="font-display text-base text-ember">{local ? "End the table" : "Leave"}</h4>
         <Note>
-          Leaving forgets this seat on this phone. If a game is running, the host will have to hand
-          the seat back to you.
+          {local
+            ? "Throws the whole table away, including tonight's score, and goes back to the start."
+            : "Leaving forgets this seat on this phone. If a game is running, the host will have to hand the seat back to you."}
         </Note>
         <Button variant="ghost" onClick={onLeave}>
-          Leave this room
+          {local ? "End this table" : "Leave this room"}
         </Button>
       </section>
     </div>

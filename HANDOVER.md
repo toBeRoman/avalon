@@ -28,8 +28,9 @@ There are no images anywhere in the product — the whole UI is type and colour.
 
 These were chosen with the original owner and should not be "fixed" without asking:
 
-- **Online only.** All state lives server-side. There is no offline or pass-the-phone mode. The
-  app does not work without connectivity. This is a known and accepted risk for the use case.
+- **Two modes, one engine.** Online play is authoritative server-side. Pass-and-play runs the
+  identical engine in the browser (`src/client/localGame.ts`), which is why the engine lives in
+  `src/shared` rather than `src/server`. Anything added to the state machine works in both.
 - **Full public history.** Every past proposal and every individual vote stays permanently
   readable. This makes deduction sharper and less memory-based than tabletop Avalon. It is a
   feature, chosen on purpose.
@@ -39,6 +40,10 @@ These were chosen with the original owner and should not be "fixed" without aski
 - **Reveal screens only wait on *connected* players**, so someone dropping out never leaves
   everyone else stuck on a "Continue" screen.
 - **5–10 players only**, using the official tables. No house-ruled 11+ support.
+- **Votes and quest cards can be changed** until the last one lands. Nothing is visible until
+  they all are, so it leaks nothing and it rescues a mis-tap in the dark.
+- **Quest card attribution is revealed only at game end.** Mid-game the view carries the fail
+  *count* and an empty `cards` map; `viewFor` strips it from both the records and the log.
 - **House rule: the proposer is locked into approving their own team.** Official Avalon lets the
   leader reject their own proposal; this build forbids it, on the server as well as in the UI.
   Everyone else votes freely. Enforced in `applyAction`'s `vote` case and covered by two unit
@@ -80,6 +85,7 @@ Browser ──HTTP──▶ Worker (src/server/index.ts)
 | `src/server/room.ts` | 236 | Durable Object: persistence, sockets, connection tracking, seat handover, expiry. |
 | `src/server/index.ts` | 85 | HTTP router: create / join / claim / describe / ws. |
 | `src/client/useRoom.ts` | 152 | WebSocket hook with reconnect, plus wake lock and vibration. |
+| `src/client/localGame.ts` | ~210 | Pass-and-play: drives the shared engine in the browser and decides whose hands the phone belongs in. |
 | `src/client/App.tsx` | 374 | Shell: chrome, phase routing, sheets, room management. |
 | `src/client/screens/` | ~990 | One file per phase group. |
 | `test/engine.test.ts` | 468 | 27 unit tests over the engine. |
@@ -209,6 +215,15 @@ Nothing here is broken; these are the honest edges.
 3. **No client-side tests.** The React layer has no unit tests. The e2e harness drives the
    protocol, not the DOM. Screenshot testing at iPhone size caught three real layout bugs
    during the build and would be worth automating.
+
+**On the insights feature**
+
+`insightsFor()` returns two lists. `table` is public deduction any player could make from the
+board and is identical for everyone. `private` is grounded in the viewer's own role and is
+rendered *inside* the hold-to-reveal overlay, never on an open screen. A test asserts the
+invariant directly: a player's private notes may only name someone their own card entitles
+them to know about. Everything in there is a fact about the game so far — deliberately no
+speculation about intent, because a confidently wrong nudge is worse than no nudge.
 
 **Smaller things**
 4. `settle()` has a guard against advancing a room where nobody has acked, so a room whose

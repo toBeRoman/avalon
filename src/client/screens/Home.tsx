@@ -7,7 +7,13 @@ import { Button, Note, Sheet } from "../ui";
 
 type Mode = "menu" | "create" | "join" | "claim";
 
-export default function Home({ onReady }: { onReady: (credentials: Credentials) => void }) {
+export default function Home({
+  onReady,
+  onPassAndPlay,
+}: {
+  onReady: (credentials: Credentials) => void;
+  onPassAndPlay: () => void;
+}) {
   const shared = new URLSearchParams(location.search).get("code") ?? "";
   const [mode, setMode] = useState<Mode>(shared ? "join" : "menu");
   const [name, setName] = useState(lastName());
@@ -88,6 +94,9 @@ export default function Home({ onReady }: { onReady: (credentials: Credentials) 
             <Button onClick={() => setMode("create")}>Start a new game</Button>
             <Button variant="ghost" onClick={() => setMode("join")}>
               Join with a code
+            </Button>
+            <Button variant="quiet" onClick={onPassAndPlay}>
+              No signal? Play on one phone
             </Button>
           </div>
         ) : null}
