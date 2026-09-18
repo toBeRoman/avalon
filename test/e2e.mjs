@@ -94,7 +94,11 @@ console.log("options: Percival, Morgana, Mordred, Lady of the Lake");
 async function playGame(evilFails, label) {
   console.log(`\n=== ${label} ===`);
   send(host, { t: "start" });
-  await until(() => phase() === "roleReveal", "the deal");
+  // Every phone, not just the first — the deal reaches them at different moments.
+  await until(
+    () => players.every((p) => p.view.phase === "roleReveal" && p.view.you.role),
+    "every phone to be dealt in",
+  );
 
   console.log(`roles: ${players.map((p) => `${p.name}=${p.view.you.role}`).join(" ")}`);
 
@@ -116,7 +120,7 @@ async function playGame(evilFails, label) {
     );
 
   players.forEach((p) => send(p, { t: "ack" }));
-  await until(() => phase() !== "roleReveal", "past the reveal");
+  await until(() => players.every((p) => p.view.phase !== "roleReveal"), "past the reveal");
 
   for (let guard = 0; guard < 300 && phase() !== "ended"; guard++) {
     const game = players[0].view.game;
@@ -241,7 +245,10 @@ console.log("\n=== reconnect ===");
 send(host, { t: "playAgain" });
 await until(() => phase() === "lobby", "the lobby");
 send(host, { t: "start" });
-await until(() => phase() === "roleReveal", "the deal");
+await until(
+  () => players.every((p) => p.view.phase === "roleReveal" && p.view.you.role),
+  "every phone to be dealt in",
+);
 
 const victim = players[3];
 const roleBefore = victim.view.you.role;
