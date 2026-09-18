@@ -59,5 +59,14 @@ pnpm check    # typecheck and tests
 pnpm deploy   # build and push to Cloudflare
 ```
 
+Deploying needs a Cloudflare account id. It lives in a gitignored `.env` rather than in
+`wrangler.jsonc`, so this repository can stay public:
+
+```sh
+echo 'CLOUDFLARE_ACCOUNT_ID=your-account-id' > .env
+```
+
+Pushing to `main` redeploys automatically through Cloudflare Workers Builds.
+
 Rooms are deleted after twelve hours of inactivity. Nothing is stored about anyone: no
 accounts, no analytics, no names beyond the game you are in.
