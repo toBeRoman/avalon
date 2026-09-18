@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { applyAction, startGame, viewFor, type Rng } from "../src/server/engine";
+import {
+  applyAction,
+  emptyScoreboard,
+  startGame,
+  viewFor,
+  type Rng,
+} from "../src/shared/engine";
 import {
   buildDeck,
   DEFAULT_OPTIONS,
@@ -39,6 +45,7 @@ function makeRoom(n: number, options: Partial<Options> = {}): RoomState {
     phase: "lobby",
     game: null,
     claim: null,
+    scores: emptyScoreboard(),
     createdAt: 0,
     updatedAt: 0,
   };
@@ -426,6 +433,120 @@ describe("the Lady of the Lake", () => {
   });
 });
 
+describe("changing your mind", () => {
+  it("lets you swap your vote until the last one lands", () => {
+    const room = makeRoom(5);
+    startGame(room, seeded(31));
+    ackAll(room);
+    const g = room.game!;
+    const leader = g.order[g.leaderIdx];
+    applyAction(room, leader, { t: "propose", team: g.order.slice(0, 2) });
+    const voter = g.order.find((id) => id !== leader)!;
+
+    expect(applyAction(room, voter, { t: "vote", approve: true })).toBeNull();
+    expect(viewFor(room, voter).game!.yourVote).toBe(true);
+    expect(applyAction(room, voter, { t: "vote", approve: false })).toBeNull();
+    expect(viewFor(room, voter).game!.yourVote).toBe(false);
+    // Swapping must not count as a second vote.
+    expect(Object.keys(g.proposal!.votes)).toHaveLength(1);
+  });
+
+  it("still will not let the proposer swap to reject", () => {
+    const room = makeRoom(5);
+    startGame(room, seeded(32));
+    ackAll(room);
+    const g = room.game!;
+    const leader = g.order[g.leaderIdx];
+    applyAction(room, leader, { t: "propose", team: g.order.slice(0, 2) });
+    applyAction(room, leader, { t: "vote", approve: true });
+    expect(applyAction(room, leader, { t: "vote", approve: false })).toContain("must approve");
+    expect(g.proposal!.votes[leader]).toBe(true);
+  });
+
+  it("lets an evil player swap their quest card until the last one is in", () => {
+    const room = makeRoom(5);
+    startGame(room, seeded(33));
+    ackAll(room);
+    const g = room.game!;
+    const evil = g.order.filter((id) => sideOf(g.roles[id]) === "evil");
+    const leader = g.order[g.leaderIdx];
+    const team = [evil[0], g.order.find((id) => id !== evil[0])!];
+    applyAction(room, leader, { t: "propose", team });
+    voteAll(room, true);
+    ackAll(room);
+
+    applyAction(room, evil[0], { t: "quest", success: true });
+    expect(viewFor(room, evil[0]).game!.yourCard).toBe(true);
+    expect(applyAction(room, evil[0], { t: "quest", success: false })).toBeNull();
+    expect(viewFor(room, evil[0]).game!.yourCard).toBe(false);
+    // Good still cannot fail, however many times they try.
+    const good = team.find((id) => sideOf(g.roles[id]) === "good");
+    if (good) expect(applyAction(room, good, { t: "quest", success: false })).toContain("cannot fail");
+  });
+});
+
+describe("abandoning a game", () => {
+  it("lets the host throw a game away and go back to the lobby", () => {
+    const room = makeRoom(6);
+    startGame(room, seeded(34));
+    ackAll(room);
+    expect(room.phase).toBe("proposal");
+    expect(applyAction(room, room.hostId, { t: "abandon" })).toBeNull();
+    expect(room.phase).toBe("lobby");
+    expect(room.game).toBeNull();
+    expect(room.players).toHaveLength(6);
+  });
+
+  it("is refused to everyone else, and pointless in the lobby", () => {
+    const room = makeRoom(6);
+    startGame(room, seeded(35));
+    const other = room.players.find((p) => p.id !== room.hostId)!;
+    expect(applyAction(room, other.id, { t: "abandon" })).toContain("Only the host");
+    expect(room.phase).toBe("roleReveal");
+    applyAction(room, room.hostId, { t: "abandon" });
+    expect(applyAction(room, room.hostId, { t: "abandon" })).toContain("no game to abandon");
+  });
+
+  it("does not count an abandoned game on the scoreboard", () => {
+    const room = makeRoom(5);
+    startGame(room, seeded(36));
+    ackAll(room);
+    applyAction(room, room.hostId, { t: "abandon" });
+    expect(room.scores.games).toBe(0);
+  });
+});
+
+describe("the night's scoreboard", () => {
+  it("counts each finished game once, for the winning side", () => {
+    const room = makeRoom(5);
+
+    startGame(room, seeded(37));
+    ackAll(room);
+    const evil = room.players.map((p) => p.id).filter((id) => sideOf(room.game!.roles[id]) === "evil");
+    playRound(room, [evil[0]]);
+    playRound(room, [evil[0]]);
+    playRound(room, [evil[0]]);
+    expect(room.game!.outcome!.winner).toBe("evil");
+    expect(room.scores).toMatchObject({ games: 1, evil: 1, good: 0 });
+    expect(Object.values(room.scores.players).every((p) => p.played === 1)).toBe(true);
+    expect(evil.every((id) => room.scores.players[id].won === 1)).toBe(true);
+
+    applyAction(room, room.hostId, { t: "playAgain" });
+    startGame(room, seeded(38));
+    ackAll(room);
+    playRound(room);
+    playRound(room);
+    playRound(room);
+    const assassin = idsWithRole(room, "assassin")[0];
+    const innocent = room.game!.order.find(
+      (id) => sideOf(room.game!.roles[id]) === "good" && room.game!.roles[id] !== "merlin",
+    )!;
+    applyAction(room, assassin, { t: "assassinate", targetId: innocent });
+    expect(room.scores).toMatchObject({ games: 2, evil: 1, good: 1 });
+    expect(Object.values(room.scores.players).every((p) => p.played === 2)).toBe(true);
+  });
+});
+
 describe("what goes over the wire", () => {
   it("never sends another player's role", () => {
     const room = makeRoom(7, { mordred: true, oberon: true });
@@ -500,6 +621,82 @@ describe("what goes over the wire", () => {
     const bystander = room.game!.order.find((id) => id !== holder && id !== target)!;
     expect(viewFor(room, bystander).game!.lady!.result).toBeUndefined();
     expect(viewFor(room, bystander).game!.ladyFindings).toEqual([]);
+  });
+
+  it("seals who played which quest card until the game ends", () => {
+    const room = makeRoom(5);
+    startGame(room, seeded(39));
+    ackAll(room);
+    const g = room.game!;
+    const evil = g.order.filter((id) => sideOf(g.roles[id]) === "evil");
+    const leader = g.order[g.leaderIdx];
+    const team = [evil[0], g.order.find((id) => id !== evil[0])!];
+    applyAction(room, leader, { t: "propose", team });
+    voteAll(room, true);
+    ackAll(room);
+    applyAction(room, team[0], { t: "quest", success: false });
+    applyAction(room, team[1], { t: "quest", success: true });
+    ackAll(room);
+
+    // Mid-game: the count is public, the attribution is not.
+    const watcher = g.order.find((id) => !team.includes(id))!;
+    const midGame = viewFor(room, watcher);
+    expect(midGame.game!.quests[0].fails).toBe(1);
+    expect(midGame.game!.quests[0].cards).toEqual({});
+    const questLog = midGame.game!.log.find((e) => e.k === "quest");
+    expect(questLog && "cards" in questLog ? questLog.cards : null).toEqual({});
+
+    // Even the player who played the Fail is not told about it through the record.
+    expect(viewFor(room, team[0]).game!.quests[0].cards).toEqual({});
+
+    playRound(room, [evil[0]]);
+    playRound(room, [evil[0]]);
+    expect(room.phase).toBe("ended");
+    const ended = viewFor(room, watcher);
+    expect(ended.game!.quests[0].cards[team[0]]).toBe(false);
+    expect(ended.game!.quests[0].cards[team[1]]).toBe(true);
+  });
+
+  it("only lets your private notes name people your own card knows about", () => {
+    const room = makeRoom(7, { mordred: true, lady: true });
+    startGame(room, seeded(40));
+    ackAll(room);
+    playRound(room);
+    const g = room.game!;
+
+    const nameOf = (id: string) => room.players.find((p) => p.id === id)!.name;
+    const evilIds = g.order.filter((id) => sideOf(g.roles[id]) === "evil");
+
+    for (const player of room.players) {
+      const view = viewFor(room, player.id);
+      const text = view.insights.map((i) => i.text).join(" ");
+
+      // Everything you may legitimately name: whoever your role sees, plus yourself.
+      const entitled = new Set([...(view.you.knowledge?.ids ?? []), player.id]);
+      for (const finding of view.game!.ladyFindings) entitled.add(finding.targetId);
+
+      for (const evilId of evilIds) {
+        if (entitled.has(evilId)) continue;
+        expect(text).not.toContain(nameOf(evilId));
+      }
+    }
+
+    const merlin = idsWithRole(room, "merlin")[0];
+    expect(viewFor(room, merlin).insights.length).toBeGreaterThan(0);
+  });
+
+  it("gives every player the same public table notes", () => {
+    const room = makeRoom(7, { mordred: true });
+    startGame(room, seeded(41));
+    ackAll(room);
+    const evil = room.game!.order.filter((id) => sideOf(room.game!.roles[id]) === "evil");
+    playRound(room, [evil[0]]);
+
+    const first = JSON.stringify(viewFor(room, room.players[0].id).tableInsights);
+    for (const player of room.players) {
+      expect(JSON.stringify(viewFor(room, player.id).tableInsights)).toBe(first);
+    }
+    expect(first).toContain("failed");
   });
 
   it("reveals every role once the game is over", () => {

@@ -9,16 +9,19 @@ import {
   sideOf,
   teamSize,
   validate,
-} from "../shared/rules";
+} from "./rules";
 import type {
   ClientMessage,
   GameState,
   GameView,
+  Insight,
   Player,
+  QuestRecord,
   RoomState,
+  Scoreboard,
   Side,
   View,
-} from "../shared/types";
+} from "./types";
 
 const ACK_PHASES = new Set(["roleReveal", "voteReveal", "questReveal", "ladyReveal"]);
 
@@ -41,6 +44,10 @@ function shuffle<T>(items: T[], rng: Rng): T[] {
 
 const byId = (room: RoomState, id: string): Player | undefined =>
   room.players.find((p) => p.id === id);
+
+export function emptyScoreboard(): Scoreboard {
+  return { games: 0, good: 0, evil: 0, players: {} };
+}
 
 /* ------------------------------------------------------------------ */
 /* Starting and ending a game                                          */
@@ -85,8 +92,17 @@ export function startGame(room: RoomState, rng: Rng = defaultRng): void {
 }
 
 function endGame(room: RoomState, winner: Side, reason: string): void {
-  room.game!.outcome = { winner, reason };
+  const g = room.game!;
+  g.outcome = { winner, reason };
   room.phase = "ended";
+
+  room.scores.games += 1;
+  room.scores[winner] += 1;
+  for (const id of g.order) {
+    const entry = (room.scores.players[id] ??= { played: 0, won: 0 });
+    entry.played += 1;
+    if (sideOf(g.roles[id]) === winner) entry.won += 1;
+  }
 }
 
 /* ------------------------------------------------------------------ */
@@ -143,7 +159,13 @@ function resolveQuest(room: RoomState): void {
   const p = g.proposal!;
   const fails = p.team.filter((id) => g.questCards[id] === false).length;
   const success = fails < failsRequired(room.players.length, g.round);
-  const record = { round: g.round, team: [...p.team], fails, success };
+  const record: QuestRecord = {
+    round: g.round,
+    team: [...p.team],
+    fails,
+    success,
+    cards: { ...g.questCards },
+  };
   g.quests.push(record);
   g.log.push({ k: "quest", ...record });
   room.phase = "questReveal";
@@ -313,10 +335,11 @@ export function applyAction(
 
     case "vote": {
       if (!g || room.phase !== "vote") return "There is no vote open.";
-      if (playerId in g.proposal!.votes) return "You have already voted.";
       // House rule: you put the team forward, so you have to stand behind it.
       if (!msg.approve && g.proposal!.leaderId === playerId)
         return "You proposed this team, so you must approve it.";
+      // Changing your mind is allowed right up until the last vote lands, which
+      // leaks nothing because no vote is visible until they all are.
       g.proposal!.votes[playerId] = msg.approve;
       if (Object.keys(g.proposal!.votes).length === room.players.length) resolveVote(room);
       return null;
@@ -326,7 +349,7 @@ export function applyAction(
       if (!g || room.phase !== "quest") return "There is no quest underway.";
       const p = g.proposal!;
       if (!p.team.includes(playerId)) return "You are not on this quest.";
-      if (playerId in g.questCards) return "You have already played your card.";
+      // As with votes, a card can be swapped until the last one is in.
       if (!msg.success && sideOf(g.roles[playerId]) === "good")
         return "Loyal servants of Arthur cannot fail a quest.";
       g.questCards[playerId] = msg.success;
@@ -376,6 +399,16 @@ export function applyAction(
     case "playAgain": {
       if (!isHost) return "Only the host can start another game.";
       if (room.phase !== "ended") return "Finish this game first.";
+      room.game = null;
+      room.phase = "lobby";
+      room.claim = null;
+      return null;
+    }
+
+    case "abandon": {
+      // The escape hatch: a game can always be thrown away and redealt.
+      if (!isHost) return "Only the host can abandon a game.";
+      if (room.phase === "lobby") return "There is no game to abandon.";
       room.game = null;
       room.phase = "lobby";
       room.claim = null;
@@ -468,12 +501,242 @@ function waiting(room: RoomState): { ids: string[]; label: string | null } {
   }
 }
 
+
+/* ------------------------------------------------------------------ */
+/* Insights                                                            */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Two sets of notes. `table` holds deductions any player could make from what is
+ * public, so it is safe to show openly. `private` is derived from the player's own
+ * role and must stay behind the hold-to-reveal card.
+ *
+ * Everything here is a *fact* about the game so far. Nothing guesses at what
+ * anyone's intentions are — a wrong nudge is worse than none.
+ */
+function insightsFor(
+  room: RoomState,
+  playerId: string,
+): { table: Insight[]; private: Insight[] } {
+  const g = room.game;
+  const table: Insight[] = [];
+  const priv: Insight[] = [];
+  if (!g || room.phase === "roleReveal") return { table, private: priv };
+
+  const name = (id: string) => byId(room, id)?.name ?? "someone";
+  const list = (ids: string[]) => ids.map(name).join(", ");
+  const finished = g.quests.filter((q) => q.round !== g.round || room.phase === "ended");
+  const succeeded = g.quests.filter((q) => q.success).length;
+  const failed = g.quests.length - succeeded;
+  const over = room.phase === "ended";
+
+  /* ---- where the game stands ---- */
+
+  if (!over) {
+    if (succeeded === 2)
+      table.push({ tone: "good", text: "Good is one successful quest from forcing the Assassin." });
+    if (failed === 2)
+      table.push({ tone: "evil", text: "Evil is one failed quest from winning outright." });
+    if (g.attempt === 5)
+      table.push({
+        tone: "warn",
+        text: "Fifth proposal. If this is rejected, evil wins on the spot.",
+      });
+    else if (g.attempt === 4)
+      table.push({ tone: "warn", text: "Reject this and only one proposal is left." });
+    if (g.round === 4 && failsRequired(room.players.length, 4) === 2)
+      table.push({
+        tone: "neutral",
+        text: "This quest needs two fails. A lone spy on it cannot sink it.",
+      });
+  }
+
+  /* ---- what the failed quests narrow down ---- */
+
+  for (const quest of g.quests.filter((q) => !q.success)) {
+    if (quest.fails === quest.team.length) {
+      table.push({
+        tone: "evil",
+        text: `Every card on quest ${quest.round} was a Fail, so ${list(quest.team)} are all evil.`,
+      });
+    } else {
+      table.push({
+        tone: "evil",
+        text: `Quest ${quest.round} failed with ${quest.fails} fail${
+          quest.fails === 1 ? "" : "s"
+        } — at least ${quest.fails} of ${list(quest.team)} ${quest.fails === 1 ? "is" : "are"} evil.`,
+      });
+    }
+  }
+
+  // Anyone who has been on more than one failed quest is worth a hard look.
+  const failCounts = new Map<string, number>();
+  for (const quest of g.quests.filter((q) => !q.success))
+    for (const id of quest.team) failCounts.set(id, (failCounts.get(id) ?? 0) + 1);
+  const repeat = [...failCounts].filter(([, n]) => n > 1).map(([id]) => id);
+  if (repeat.length)
+    table.push({
+      tone: "evil",
+      text: `${list(repeat)} ${repeat.length === 1 ? "has" : "have"} been on more than one failed quest.`,
+    });
+
+  // Being trusted repeatedly is information too.
+  const cleanRuns = g.order.filter(
+    (id) =>
+      finished.length >= 2 &&
+      finished.every((q) => !q.team.includes(id) || q.success) &&
+      finished.some((q) => q.team.includes(id)),
+  );
+  if (cleanRuns.length && failed > 0)
+    table.push({
+      tone: "good",
+      text: `${list(cleanRuns)} ${cleanRuns.length === 1 ? "has" : "have"} only ever been on quests that succeeded.`,
+    });
+
+  const untested = g.order.filter((id) => !g.quests.some((q) => q.team.includes(id)));
+  if (untested.length && g.quests.length >= 2 && !over)
+    table.push({
+      tone: "neutral",
+      text: `${list(untested)} ${untested.length === 1 ? "has" : "have"} not been on a quest yet.`,
+    });
+
+  /* ---- what your own card tells you ---- */
+
+  const role = g.roles[playerId];
+  if (!role || over) return { table, private: priv };
+
+  const side = sideOf(role);
+  const known = knowledgeFor(role, playerId, g.roles, g.order, room.options)?.ids ?? [];
+  const proposed = room.phase === "vote" || room.phase === "proposal" ? g.proposal?.team ?? [] : [];
+
+  if (known.length && proposed.length) {
+    const flagged = proposed.filter((id) => known.includes(id));
+    if (role === "merlin" || side === "evil") {
+      priv.push(
+        flagged.length
+          ? {
+              tone: side === "evil" ? "good" : "evil",
+              text:
+                side === "evil"
+                  ? `${list(flagged)} on this team ${flagged.length === 1 ? "is" : "are"} yours.`
+                  : `${list(flagged)} on this team ${flagged.length === 1 ? "is" : "are"} evil.`,
+            }
+          : {
+              tone: side === "evil" ? "evil" : "good",
+              text:
+                side === "evil"
+                  ? "None of your side is on this team. It will succeed unless Oberon is on it."
+                  : "Nobody you know to be evil is on this team.",
+            },
+      );
+    }
+  }
+
+  // A standing note so the roles with knowledge always have something live to read.
+  if (known.length) {
+    const leaderId = g.order[g.leaderIdx];
+    if (known.includes(leaderId))
+      priv.push({
+        tone: side === "evil" ? "good" : "evil",
+        text:
+          side === "evil"
+            ? `${name(leaderId)} is leading this round, and they are one of yours.`
+            : `${name(leaderId)} is leading this round, and you know they are evil.`,
+      });
+
+    const tested = known.filter((id) => g.quests.some((q) => q.team.includes(id)));
+    const untestedKnown = known.filter((id) => !tested.includes(id));
+    if (untestedKnown.length && g.quests.length >= 1)
+      priv.push({
+        tone: "neutral",
+        text:
+          side === "evil"
+            ? `${list(untestedKnown)} ${untestedKnown.length === 1 ? "has" : "have"} not been on a quest yet — still clean, still useful.`
+            : `${list(untestedKnown)} ${untestedKnown.length === 1 ? "is" : "are"} evil and has not been on a quest yet.`,
+      });
+  }
+
+  if (role === "merlin") {
+    const exposed = known.filter((id) => (failCounts.get(id) ?? 0) > 0);
+    if (exposed.length)
+      priv.push({
+        tone: "good",
+        text: `The table can already suspect ${list(exposed)}. You can afford to agree out loud.`,
+      });
+    if (g.quests.length >= 2)
+      priv.push({
+        tone: "warn",
+        text: "Every round you are right out loud is a round the Assassin learns from.",
+      });
+    if (succeeded === 2)
+      priv.push({
+        tone: "warn",
+        text: "One more success and the Assassin guesses. Start being less right out loud.",
+      });
+  }
+
+  if (role === "percival" && known.length === 2) {
+    const [a, b] = known;
+    const suspicious = known.filter((id) => (failCounts.get(id) ?? 0) > 0);
+    if (suspicious.length === 1)
+      priv.push({
+        tone: "good",
+        text: `${name(suspicious[0])} has been on a failed quest. Merlin never plays a Fail, so that points at ${name(
+          suspicious[0] === a ? a : b,
+        )} being Morgana.`,
+      });
+    else
+      priv.push({
+        tone: "neutral",
+        text: `Still nothing separating ${name(a)} from ${name(b)}. Watch which one is more eager to be believed.`,
+      });
+  }
+
+  if (side === "evil") {
+    if (role === "oberon")
+      priv.push({
+        tone: "warn",
+        text: "Your side cannot see you and you cannot see them. Assume any Fail you did not play was theirs.",
+      });
+    if (failed === 2)
+      priv.push({ tone: "evil", text: "One more failed quest and you win. Do not overreach." });
+    if (succeeded === 2 && role === "assassin")
+      priv.push({
+        tone: "warn",
+        text: "If good takes the next quest, you name Merlin. Start deciding now.",
+      });
+    const mine = g.quests.filter((q) => q.team.includes(playerId) && q.success).length;
+    if (mine >= 2)
+      priv.push({
+        tone: "good",
+        text: `You have been on ${mine} successful quests. That is cover — spend it.`,
+      });
+  }
+
+  if (side === "good" && role !== "merlin" && role !== "percival" && g.quests.length >= 1)
+    priv.push({
+      tone: "neutral",
+      text: "You know nothing nobody else knows. Trust the voting record over the argument.",
+    });
+
+  if (g.ladyFindings[playerId]?.length) {
+    for (const finding of g.ladyFindings[playerId])
+      priv.push({
+        tone: finding.result === "evil" ? "evil" : "good",
+        text: `The Lady showed you ${name(finding.targetId)} is ${finding.result}. Nobody can check that but you.`,
+      });
+  }
+
+  return { table, private: priv };
+}
+
 export function viewFor(room: RoomState, playerId: string): View {
   const g = room.game;
   const you = byId(room, playerId)!;
   const role = g?.roles[playerId] ?? null;
   const n = room.players.length;
 
+  const over = room.phase === "ended";
   let gameView: GameView | null = null;
   if (g) {
     const votingClosed = room.phase !== "vote";
@@ -487,7 +750,8 @@ export function viewFor(room: RoomState, playerId: string): View {
       order: g.order,
       teamSize: g.round <= 5 ? teamSize(n, g.round) : 0,
       failsRequired: g.round <= 5 ? failsRequired(n, g.round) : 1,
-      quests: g.quests,
+      // Who played which card stays sealed until the game is over.
+      quests: over ? g.quests : g.quests.map(({ cards, ...rest }) => ({ ...rest, cards: {} })),
       board: board(n),
       proposal: p ? { leaderId: p.leaderId, team: p.team, voted: Object.keys(p.votes) } : null,
       // Individual votes stay sealed until the last one is in.
@@ -507,15 +771,19 @@ export function viewFor(room: RoomState, playerId: string): View {
           }
         : null,
       ladyFindings: g.ladyFindings[playerId] ?? [],
-      log: g.log,
+      log: over ? g.log : g.log.map((e) => (e.k === "quest" ? { ...e, cards: {} } : e)),
       outcome: g.outcome,
-      reveal: room.phase === "ended" ? g.roles : null,
+      reveal: over ? g.roles : null,
       acks: g.acks,
+      // Your own choices come back so you can see and change them.
+      yourVote: p && !votingClosed && playerId in p.votes ? p.votes[playerId] : null,
+      yourCard: playerId in g.questCards ? g.questCards[playerId] : null,
     };
   }
 
   const w = waiting(room);
   const onTeam = room.phase === "quest" && !!g?.proposal?.team.includes(playerId);
+  const notes = insightsFor(room, playerId);
 
   return {
     code: room.code,
@@ -537,12 +805,15 @@ export function viewFor(room: RoomState, playerId: string): View {
               return k ? { ids: k.ids, label: k.label } : null;
             })()
           : null,
-      mayFail: onTeam && role !== null && sideOf(role) === "evil" && !(playerId in g!.questCards),
+      mayFail: onTeam && role !== null && sideOf(role) === "evil",
       hasPlayedCard: !!g && playerId in g.questCards,
     },
     game: gameView,
     waitingOn: w.ids,
     waitingLabel: w.label,
     claim: room.hostId === playerId ? room.claim : null,
+    scores: room.scores,
+    insights: notes.private,
+    tableInsights: notes.table,
   };
 }

@@ -7,3 +7,6 @@ dist/
 start-claude.command
 .env
 *.tsbuildinfo
+
+# Art masters live outside git; the web-sized copies in public/art are what ships.
+*.tgz

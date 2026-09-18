@@ -40,6 +40,8 @@ export interface QuestRecord {
   team: string[];
   fails: number;
   success: boolean;
+  /** Who played what. Withheld from every view until the game is over. */
+  cards: Record<string, boolean>;
 }
 
 export interface Proposal {
@@ -62,7 +64,14 @@ export type LogEntry =
       votes: Record<string, boolean>;
       approved: boolean;
     }
-  | { k: "quest"; round: number; team: string[]; fails: number; success: boolean }
+  | {
+      k: "quest";
+      round: number;
+      team: string[];
+      fails: number;
+      success: boolean;
+      cards: Record<string, boolean>;
+    }
   /** The result of a Lady of the Lake inspection is private to the holder, so it is not logged. */
   | { k: "lady"; round: number; holderId: string; targetId: string }
   | { k: "hammer"; round: number }
@@ -104,6 +113,20 @@ export interface GameState {
   acks: string[];
 }
 
+/** Kept across games in the same room, for the night's bragging rights. */
+export interface Scoreboard {
+  games: number;
+  good: number;
+  evil: number;
+  /** playerId -> games played and games their side won. */
+  players: Record<string, { played: number; won: number }>;
+}
+
+export interface Insight {
+  tone: "neutral" | "good" | "evil" | "warn";
+  text: string;
+}
+
 export interface RoomState {
   code: string;
   hostId: string;
@@ -115,6 +138,7 @@ export interface RoomState {
   game: GameState | null;
   /** A seat the host has released so a replacement phone can claim it. */
   claim: { playerId: string; code: string } | null;
+  scores: Scoreboard;
   createdAt: number;
   updatedAt: number;
 }
@@ -165,6 +189,9 @@ export interface GameView {
   /** Only at game end. */
   reveal: Record<string, RoleId> | null;
   acks: string[];
+  /** Your own vote and quest card while they can still be changed. */
+  yourVote: boolean | null;
+  yourCard: boolean | null;
 }
 
 export interface View {
@@ -177,6 +204,11 @@ export interface View {
   game: GameView | null;
   waitingOn: string[];
   waitingLabel: string | null;
+  scores: Scoreboard;
+  /** Derived from your own role. Kept behind the hold-to-reveal card. */
+  insights: Insight[];
+  /** Deductions anyone at the table could make. Safe to show openly. */
+  tableInsights: Insight[];
   claim: { playerId: string; code: string } | null;
 }
 
@@ -195,6 +227,7 @@ export type ClientMessage =
   | { t: "lady"; targetId: string }
   | { t: "assassinate"; targetId: string }
   | { t: "playAgain" }
+  | { t: "abandon" }
   | { t: "rename"; name: string }
   | { t: "kick"; playerId: string }
   | { t: "transferHost"; playerId: string }

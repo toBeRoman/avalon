@@ -1,7 +1,7 @@
 import { DurableObject } from "cloudflare:workers";
 import { DEFAULT_OPTIONS, MAX_PLAYERS } from "../shared/rules";
 import type { ClientMessage, RoomState, ServerMessage } from "../shared/types";
-import { applyAction, canJoin, settle, viewFor } from "./engine";
+import { applyAction, canJoin, emptyScoreboard, settle, viewFor } from "../shared/engine";
 
 /** Rooms are thrown away after this long with no activity. */
 const IDLE_MS = 12 * 60 * 60 * 1000;
@@ -66,6 +66,7 @@ export class RoomDO extends DurableObject<Env> {
       phase: "lobby",
       game: null,
       claim: null,
+      scores: emptyScoreboard(),
       createdAt: Date.now(),
       updatedAt: Date.now(),
     };
