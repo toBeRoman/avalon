@@ -40,6 +40,10 @@ These were chosen with the original owner and should not be "fixed" without aski
 - **Reveal screens only wait on *connected* players**, so someone dropping out never leaves
   everyone else stuck on a "Continue" screen.
 - **5–10 players only**, using the official tables. No house-ruled 11+ support.
+- **Reveal screens advance by themselves.** Waiting for all seven people to tap Continue was
+  the slowest moment in a game, so each client auto-acks after ~5s with a progress bar, and a
+  tap just skips the wait. The server is still the authority — the timer only sends the same
+  `ack` a finger would. Disabled in pass-and-play, where the phone is being handed over.
 - **Votes and quest cards can be changed** until the last one lands. Nothing is visible until
   they all are, so it leaks nothing and it rescues a mis-tap in the dark.
 - **Quest card attribution is revealed only at game end.** Mid-game the view carries the fail

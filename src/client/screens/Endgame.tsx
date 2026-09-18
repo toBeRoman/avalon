@@ -156,13 +156,14 @@ export function EndedScreen({
       <Panel>
         <p className="mb-3 text-xs uppercase tracking-widest text-dim">Everyone's cards</p>
         <div className="space-y-2">
-          {game.order.map((id) => {
+          {game.order.map((id, index) => {
             const role = reveal[id];
             const evil = sideOf(role) === "evil";
             return (
               <div
                 key={id}
-                className={`flex items-center gap-3 rounded-xl border px-3 py-2 ${
+                style={{ animationDelay: `${index * 70}ms` }}
+                className={`stagger flex items-center gap-3 rounded-xl border px-3 py-2 ${
                   evil ? "border-evil/40 bg-evil/10" : "border-good/40 bg-good/10"
                 }`}
               >

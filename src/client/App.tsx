@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { ClientMessage, View } from "../shared/types";
 import { roleArt } from "./art";
 import { History, nameOf, QuestBoard, RoleCard } from "./game";
@@ -13,6 +13,7 @@ import { useBuzz, useRoom, useWakeLock, type Status } from "./useRoom";
 import {
   ActionSlot,
   Button,
+  PassAndPlay,
   HoldToReveal,
   Note,
   Panel,
@@ -63,6 +64,7 @@ function LocalShell({ local }: { local: ReturnType<typeof useLocalGame> }) {
   const { view, actor, handedOver } = local;
   const [sheet, setSheet] = useState<SheetName>(null);
   const [actionSlot, setActionSlot] = useState<HTMLElement | null>(null);
+  const scroller = useScrollReset(`${view?.phase}-${actor?.id}-${handedOver}`);
   if (!view) return null;
 
   const body = !handedOver && actor ? (
@@ -77,6 +79,7 @@ function LocalShell({ local }: { local: ReturnType<typeof useLocalGame> }) {
   const secretHolder = handedOver && actor?.secret;
 
   return (
+    <PassAndPlay.Provider value>
     <div className="flex h-full flex-col">
       <Toast message={local.error} onDone={local.clearError} />
 
@@ -100,7 +103,14 @@ function LocalShell({ local }: { local: ReturnType<typeof useLocalGame> }) {
       </header>
 
       <ActionSlot.Provider value={actionSlot}>
-        <main className="flex min-h-0 flex-1 flex-col overflow-y-auto">{body}</main>
+        <main ref={scroller} className="flex min-h-0 flex-1 flex-col overflow-y-auto">
+          <div
+            key={`${view.phase}-${actor?.id ?? "table"}-${handedOver}`}
+            className="flex min-h-0 flex-1 flex-col"
+          >
+            {body}
+          </div>
+        </main>
         <div
           ref={setActionSlot}
           className="shrink-0 border-t border-edge bg-ink px-4 py-3 empty:hidden"
@@ -135,6 +145,7 @@ function LocalShell({ local }: { local: ReturnType<typeof useLocalGame> }) {
         local
       />
     </div>
+    </PassAndPlay.Provider>
   );
 }
 
@@ -154,6 +165,7 @@ function RoomShell({
   const { view, status, error, evictionReason, send, clearError } = useRoom(credentials);
   const [sheet, setSheet] = useState<SheetName>(null);
   const [actionSlot, setActionSlot] = useState<HTMLElement | null>(null);
+  const scroller = useScrollReset(view?.phase);
 
   const inGame = !!view && view.phase !== "lobby";
   useWakeLock(inGame);
@@ -195,8 +207,11 @@ function RoomShell({
       <Header view={view} status={status} onMenu={() => setSheet("manage")} />
 
       <ActionSlot.Provider value={actionSlot}>
-        <main className="flex min-h-0 flex-1 flex-col overflow-y-auto">
-          <Phase view={view} send={send} />
+        <main ref={scroller} className="flex min-h-0 flex-1 flex-col overflow-y-auto">
+          {/* Keyed so every phase gets its own entrance instead of swapping in place. */}
+          <div key={view.phase} className="flex min-h-0 flex-1 flex-col">
+            <Phase view={view} send={send} />
+          </div>
         </main>
 
         {/* Screens portal their primary action in here. Hidden when a screen has none. */}
@@ -234,6 +249,18 @@ function RoomShell({
       />
     </div>
   );
+}
+
+/**
+ * A new screen should start at the top. Without this you keep whatever scroll
+ * offset the last screen had, which lands you halfway down the next one.
+ */
+function useScrollReset(key: unknown) {
+  const ref = useRef<HTMLElement>(null);
+  useEffect(() => {
+    if (ref.current) ref.current.scrollTop = 0;
+  }, [key]);
+  return ref;
 }
 
 /* ------------------------------------------------------------------ */
@@ -286,18 +313,23 @@ function WaitingStrip({ view }: { view: View }) {
     .filter((id) => id !== view.you.id)
     .map((id) => nameOf(view.players, id));
 
-  const text = yours
-    ? "It's on you"
-    : view.waitingLabel
-      ? `Waiting for ${view.waitingLabel}`
-      : others.length
-        ? `Waiting on ${others.join(", ")}`
-        : "Everyone is ready";
+  // Reveal screens move on by themselves, so they carry no urgency.
+  const reveal = view.phase === "voteReveal" || view.phase === "questReveal";
+
+  const text = reveal
+    ? "Everyone is looking"
+    : yours
+      ? "It's on you"
+      : view.waitingLabel
+        ? `Waiting for ${view.waitingLabel}`
+        : others.length
+          ? `Waiting on ${others.join(", ")}`
+          : "Everyone is ready";
 
   return (
     <div
-      className={`shrink-0 border-t px-4 py-2 text-center text-xs ${
-        yours ? "border-ember/50 bg-ember/10 text-ember" : "border-edge bg-ink text-dim"
+      className={`shrink-0 border-t px-4 py-2 text-center text-xs transition-colors duration-300 ${
+        yours && !reveal ? "border-ember/50 bg-ember/10 text-ember" : "border-edge bg-ink text-dim"
       }`}
     >
       {text}

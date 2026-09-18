@@ -49,11 +49,12 @@ export default function Proposal({
       ) : null}
 
       <div className="space-y-2">
-        {game.order.map((id) => {
+        {game.order.map((id, index) => {
           const player = view.players.find((p) => p.id === id)!;
           return (
             <PlayerButton
               key={id}
+              delay={index}
               player={player}
               selected={team.includes(id)}
               disabled={!youLead}

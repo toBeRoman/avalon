@@ -19,6 +19,8 @@ proposals, votes and quests, and handles the Assassin at the end.
 - **Full history.** Every proposal, every vote and every quest result stays scrollable, which
   settles "who rejected round two?" without anyone having to remember.
 - **Built-in coaching** for people who have never played, on every screen.
+- **Nothing waits on the slowest person.** Result screens show, run a short bar, and move on;
+  tapping just skips ahead.
 - **Insights** that update as the game goes: public deductions anyone could make sit openly in
   the history, and notes grounded in your own card stay behind the hold-to-reveal.
 - **No signal? Play on one phone.** Pass-and-play runs the same engine entirely in the browser.

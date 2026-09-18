@@ -31,9 +31,9 @@ export function QuestBoard({ view }: { view: View }) {
         return (
           <div key={round} className="flex flex-col items-center gap-1">
             <div
-              className={`flex h-10 w-10 items-center justify-center rounded-full border-2 font-display text-lg ${tone} ${
+              className={`flex h-10 w-10 items-center justify-center rounded-full border-2 font-display text-lg transition-colors duration-500 ${tone} ${
                 current ? "pulse" : ""
-              }`}
+              } ${result ? "board-pop" : ""}`}
             >
               {slot.size}
             </div>

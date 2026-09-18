@@ -1,7 +1,19 @@
+import { useContext } from "react";
 import type { ClientMessage, View } from "../../shared/types";
 import { questArt } from "../art";
 import { nameOf } from "../game";
-import { Button, Note, Panel, Screen, Sticky, Tag, Title } from "../ui";
+import {
+  Button,
+  ContinueButton,
+  Note,
+  Panel,
+  PassAndPlay,
+  Screen,
+  Sticky,
+  Tag,
+  Title,
+  useAutoAdvance,
+} from "../ui";
 
 export function QuestScreen({
   view,
@@ -97,6 +109,8 @@ export function QuestRevealScreen({
   const acked = game.acks.includes(view.you.id);
   const successes = game.quests.filter((q) => q.success).length;
   const failures = game.quests.length - successes;
+  const passAndPlay = useContext(PassAndPlay);
+  const progress = useAutoAdvance(!acked && !passAndPlay, () => send({ t: "ack" }), 6500);
 
   return (
     <Screen>
@@ -126,11 +140,12 @@ export function QuestRevealScreen({
           {Array.from({ length: result.team.length }, (_, i) => (
             <span
               key={i}
-              className={`flex h-16 w-13 items-center justify-center rounded-lg border-2 text-center font-display text-xs leading-tight ${
+              className={`board-pop flex h-16 w-13 items-center justify-center rounded-lg border-2 text-center font-display text-xs leading-tight ${
                 i < result.fails
                   ? "border-evil bg-evil/25 text-evil"
                   : "border-good bg-good/20 text-good"
               }`}
+              style={{ animationDelay: `${i * 180}ms` }}
             >
               {i < result.fails ? "Fail" : "Success"}
             </span>
@@ -148,7 +163,7 @@ export function QuestRevealScreen({
         {acked ? (
           <Note>Waiting for everyone else to look.</Note>
         ) : (
-          <Button onClick={() => send({ t: "ack" })}>Continue</Button>
+          <ContinueButton progress={progress} onClick={() => send({ t: "ack" })} />
         )}
       </Sticky>
     </Screen>

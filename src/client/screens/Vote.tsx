@@ -1,6 +1,18 @@
+import { useContext } from "react";
 import type { ClientMessage, View } from "../../shared/types";
 import { nameOf, VoteTrack } from "../game";
-import { Button, Note, Panel, Screen, Sticky, Tag, Title } from "../ui";
+import {
+  Button,
+  ContinueButton,
+  Note,
+  Panel,
+  PassAndPlay,
+  Screen,
+  Sticky,
+  Tag,
+  Title,
+  useAutoAdvance,
+} from "../ui";
 
 export function VoteScreen({
   view,
@@ -88,6 +100,8 @@ export function VoteRevealScreen({
   const rejections = Object.keys(result.votes).length - approvals;
   const acked = game.acks.includes(view.you.id);
   const lastChance = !result.approved && game.attempt >= 5;
+  const passAndPlay = useContext(PassAndPlay);
+  const progress = useAutoAdvance(!acked && !passAndPlay, () => send({ t: "ack" }));
 
   return (
     <Screen>
@@ -115,10 +129,11 @@ export function VoteRevealScreen({
           <p className="text-center text-xs uppercase tracking-widest text-good">Approved</p>
           {Object.entries(result.votes)
             .filter(([, approved]) => approved)
-            .map(([id]) => (
+            .map(([id], index) => (
               <p
                 key={id}
-                className="rounded-lg border border-good/40 bg-good/10 px-3 py-2 text-center text-sm"
+                className="stagger rounded-lg border border-good/40 bg-good/10 px-3 py-2 text-center text-sm"
+                style={{ animationDelay: `${index * 55}ms` }}
               >
                 {nameOf(view.players, id)}
               </p>
@@ -128,10 +143,11 @@ export function VoteRevealScreen({
           <p className="text-center text-xs uppercase tracking-widest text-evil">Rejected</p>
           {Object.entries(result.votes)
             .filter(([, approved]) => !approved)
-            .map(([id]) => (
+            .map(([id], index) => (
               <p
                 key={id}
-                className="rounded-lg border border-evil/40 bg-evil/10 px-3 py-2 text-center text-sm"
+                className="stagger rounded-lg border border-evil/40 bg-evil/10 px-3 py-2 text-center text-sm"
+                style={{ animationDelay: `${index * 55}ms` }}
               >
                 {nameOf(view.players, id)}
               </p>
@@ -143,7 +159,7 @@ export function VoteRevealScreen({
         {acked ? (
           <Note>Waiting for everyone else to look.</Note>
         ) : (
-          <Button onClick={() => send({ t: "ack" })}>Continue</Button>
+          <ContinueButton progress={progress} onClick={() => send({ t: "ack" })} />
         )}
       </Sticky>
     </Screen>

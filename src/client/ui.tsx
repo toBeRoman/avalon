@@ -45,7 +45,7 @@ export function Button({
       onClick={onClick}
       disabled={disabled}
       className={[
-        "rounded-xl border font-semibold tracking-wide transition",
+        "rounded-xl border font-semibold tracking-wide transition active:scale-[0.985]",
         // Comfortably thumb-sized in the dark.
         small ? "px-4 py-2 text-sm" : "px-5 py-4 text-base min-h-14",
         full ? "w-full" : "",
@@ -89,6 +89,62 @@ export function Panel({ children, tone }: { children: ReactNode; tone?: Side | "
  */
 export const ActionSlot = createContext<HTMLElement | null>(null);
 
+/** True when one device is being passed round, where nothing should auto-advance. */
+export const PassAndPlay = createContext(false);
+
+/**
+ * Reveal screens used to wait for every single player to tap Continue, which at
+ * seven people is the slowest moment in a game. Now the result shows, a bar runs
+ * down, and it moves on by itself — tapping just skips the wait.
+ */
+export function useAutoAdvance(active: boolean, onDone: () => void, ms = 5500): number {
+  const [progress, setProgress] = useState(0);
+  const done = useRef(onDone);
+  done.current = onDone;
+
+  useEffect(() => {
+    if (!active) {
+      setProgress(0);
+      return;
+    }
+    let frame = 0;
+    const started = performance.now();
+    const tick = (now: number) => {
+      const ratio = Math.min(1, (now - started) / ms);
+      setProgress(ratio);
+      if (ratio < 1) frame = requestAnimationFrame(tick);
+      else done.current();
+    };
+    frame = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(frame);
+  }, [active, ms]);
+
+  return progress;
+}
+
+/** The Continue button, with the time remaining drawn underneath it. */
+export function ContinueButton({
+  progress,
+  onClick,
+  label = "Continue",
+}: {
+  progress: number;
+  onClick: () => void;
+  label?: string;
+}) {
+  return (
+    <div className="space-y-2">
+      <Button onClick={onClick}>{label}</Button>
+      <div className="h-0.5 overflow-hidden rounded-full bg-edge">
+        <div
+          className="h-full origin-left bg-ember/70"
+          style={{ transform: `scaleX(${progress})` }}
+        />
+      </div>
+    </div>
+  );
+}
+
 export function Sticky({ children }: { children: ReactNode }) {
   const slot = useContext(ActionSlot);
   const content = <div className="space-y-3">{children}</div>;
@@ -112,6 +168,7 @@ export function PlayerButton({
   onClick,
   badge,
   note,
+  delay,
 }: {
   player: Player;
   selected?: boolean;
@@ -121,14 +178,18 @@ export function PlayerButton({
   onClick?: () => void;
   badge?: ReactNode;
   note?: ReactNode;
+  /** Position in a list, so rows arrive one after another. */
+  delay?: number;
 }) {
   return (
     <button
       type="button"
       onClick={onClick}
       disabled={disabled}
+      style={delay === undefined ? undefined : { animationDelay: `${delay * 45}ms` }}
       className={[
-        "flex w-full items-center gap-3 rounded-xl border px-4 py-3 text-left transition min-h-14",
+        "flex w-full items-center gap-3 rounded-xl border px-4 py-3 text-left transition min-h-14 active:scale-[0.99]",
+        delay === undefined ? "" : "stagger",
         selected
           ? "border-ember bg-ember/15 text-parchment"
           : "border-edge bg-surface text-parchment",
