@@ -31,7 +31,7 @@ export default function Proposal({
       <Title
         sub={
           youLead
-            ? `Choose ${game.teamSize} people for quest ${game.round}. Everyone then votes on your team.`
+            ? `Choose ${game.teamSize} people for quest ${game.round}. Everyone then votes on your team — and you are locked into approving it.`
             : `${nameOf(view.players, game.leaderId)} is choosing ${game.teamSize} for quest ${game.round}.`
         }
       >

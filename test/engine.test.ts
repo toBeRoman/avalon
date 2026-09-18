@@ -53,6 +53,14 @@ const ackAll = (room: RoomState) => {
   for (const p of [...room.players]) applyAction(room, p.id, { t: "ack" });
 };
 
+/** Everyone votes. The leader is locked into approving their own team (house rule). */
+function voteAll(room: RoomState, approve: boolean) {
+  const leaderId = room.game!.proposal!.leaderId;
+  for (const player of room.players) {
+    applyAction(room, player.id, { t: "vote", approve: approve || player.id === leaderId });
+  }
+}
+
 /** Runs one full quest round. `failers` play a fail card if they are evil and on the team. */
 function playRound(room: RoomState, failers: string[] = []) {
   const g = room.game!;
@@ -61,7 +69,7 @@ function playRound(room: RoomState, failers: string[] = []) {
   // Put the intended failers on the team, then fill up in seat order.
   const team = [...new Set([...failers, ...g.order])].slice(0, size);
   expect(applyAction(room, leader, { t: "propose", team })).toBeNull();
-  for (const p of room.players) applyAction(room, p.id, { t: "vote", approve: true });
+  voteAll(room, true);
   expect(room.phase).toBe("voteReveal");
   ackAll(room);
   expect(room.phase).toBe("quest");
@@ -236,7 +244,7 @@ describe("running a game", () => {
       expect(g.attempt).toBe(attempt);
       const leader = g.order[g.leaderIdx];
       applyAction(room, leader, { t: "propose", team: g.order.slice(0, teamSize(5, 1)) });
-      for (const p of room.players) applyAction(room, p.id, { t: "vote", approve: false });
+      voteAll(room, false);
       ackAll(room);
     }
     expect(room.phase).toBe("ended");
@@ -251,7 +259,15 @@ describe("running a game", () => {
     const g = room.game!;
     const leader = g.order[g.leaderIdx];
     applyAction(room, leader, { t: "propose", team: g.order.slice(0, 2) });
-    room.players.forEach((p, i) => applyAction(room, p.id, { t: "vote", approve: i < 3 }));
+
+    // Three for, three against, with the leader necessarily among the three for.
+    const others = room.players.map((p) => p.id).filter((id) => id !== leader);
+    applyAction(room, leader, { t: "vote", approve: true });
+    others.forEach((id, i) => applyAction(room, id, { t: "vote", approve: i < 2 }));
+
+    const votes = Object.values(g.proposal!.votes);
+    expect(votes.filter(Boolean)).toHaveLength(3);
+    expect(votes.filter((v) => !v)).toHaveLength(3);
     expect(g.proposal!.approved).toBe(false);
   });
 
@@ -281,10 +297,43 @@ describe("running a game", () => {
     const good = g.order.filter((id) => sideOf(g.roles[id]) === "good");
     const team = good.slice(0, 2);
     applyAction(room, leader, { t: "propose", team });
-    for (const p of room.players) applyAction(room, p.id, { t: "vote", approve: true });
+    voteAll(room, true);
     ackAll(room);
     const error = applyAction(room, team[0], { t: "quest", success: false });
     expect(error).toContain("cannot fail");
+  });
+
+  it("locks the proposer into approving their own team", () => {
+    const room = makeRoom(5);
+    startGame(room, seeded(21));
+    ackAll(room);
+    const g = room.game!;
+    const leader = g.order[g.leaderIdx];
+    applyAction(room, leader, { t: "propose", team: g.order.slice(0, 2) });
+
+    expect(applyAction(room, leader, { t: "vote", approve: false })).toContain("must approve");
+    // The refusal must not have recorded anything.
+    expect(leader in g.proposal!.votes).toBe(false);
+
+    // Everyone else is still free to reject.
+    const other = g.order.find((id) => id !== leader)!;
+    expect(applyAction(room, other, { t: "vote", approve: false })).toBeNull();
+    expect(g.proposal!.votes[other]).toBe(false);
+
+    expect(applyAction(room, leader, { t: "vote", approve: true })).toBeNull();
+    expect(g.proposal!.votes[leader]).toBe(true);
+  });
+
+  it("still lets a team fail with the proposer forced to approve", () => {
+    const room = makeRoom(5);
+    startGame(room, seeded(22));
+    ackAll(room);
+    const g = room.game!;
+    const leader = g.order[g.leaderIdx];
+    applyAction(room, leader, { t: "propose", team: g.order.slice(0, 2) });
+    voteAll(room, false);
+    expect(Object.values(g.proposal!.votes).filter(Boolean)).toHaveLength(1);
+    expect(g.proposal!.approved).toBe(false);
   });
 
   it("only lets the leader propose, and only a team of the right size", () => {
@@ -304,7 +353,7 @@ describe("running a game", () => {
     ackAll(room);
     const first = room.game!.order[room.game!.leaderIdx];
     applyAction(room, first, { t: "propose", team: room.game!.order.slice(0, 2) });
-    for (const p of room.players) applyAction(room, p.id, { t: "vote", approve: false });
+    voteAll(room, false);
     ackAll(room);
     expect(room.game!.order[room.game!.leaderIdx]).not.toBe(first);
   });
@@ -412,7 +461,7 @@ describe("what goes over the wire", () => {
     expect(view.game!.voteResult).toBeNull();
     expect(view.game!.proposal!.voted).toEqual([g.order[0]]);
 
-    for (const p of room.players) applyAction(room, p.id, { t: "vote", approve: true });
+    voteAll(room, true);
     view = viewFor(room, watcher);
     expect(view.game!.voteResult!.approved).toBe(true);
     expect(Object.keys(view.game!.voteResult!.votes)).toHaveLength(5);
@@ -427,7 +476,7 @@ describe("what goes over the wire", () => {
     const leader = g.order[g.leaderIdx];
     const team = [evil[0], g.order.find((id) => id !== evil[0])!];
     applyAction(room, leader, { t: "propose", team });
-    for (const p of room.players) applyAction(room, p.id, { t: "vote", approve: true });
+    voteAll(room, true);
     ackAll(room);
     applyAction(room, team[0], { t: "quest", success: false });
     applyAction(room, team[1], { t: "quest", success: true });

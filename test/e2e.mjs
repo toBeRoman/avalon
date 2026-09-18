@@ -133,6 +133,7 @@ async function playGame(evilFails, label) {
         break;
       }
       case "vote": {
+        // The proposer is locked into approving, so everyone approving is always legal.
         players.forEach((p) => send(p, { t: "vote", approve: true }));
         await until(() => phase() !== "vote", "the votes");
         break;
@@ -326,7 +327,25 @@ const checks = [
     "nobody can assassinate out of turn",
   ),
 ];
+
+// The proposer is locked into approving their own team.
+const leader = seat(game.leaderId);
+send(leader, { t: "propose", team: game.order.slice(0, game.teamSize) });
+await until(() => phase() === "vote", "the vote to open");
+checks.push(
+  await expectRejection(leader, { t: "vote", approve: false }, "the proposer cannot reject"),
+);
 expectingErrors = false;
+
+// ...and everyone else still can.
+const dissenter = players.find((p) => p.creds.playerId !== game.leaderId);
+send(dissenter, { t: "vote", approve: false });
+await until(
+  () => players[0].view.game.proposal.voted.includes(dissenter.creds.playerId),
+  "a dissenting vote",
+);
+console.log("  ✓ everyone else can still reject");
+
 if (!checks.every(Boolean)) throw new Error("a rule was not enforced");
 
 console.log("\nALL CHECKS PASSED");

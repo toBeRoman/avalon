@@ -314,6 +314,9 @@ export function applyAction(
     case "vote": {
       if (!g || room.phase !== "vote") return "There is no vote open.";
       if (playerId in g.proposal!.votes) return "You have already voted.";
+      // House rule: you put the team forward, so you have to stand behind it.
+      if (!msg.approve && g.proposal!.leaderId === playerId)
+        return "You proposed this team, so you must approve it.";
       g.proposal!.votes[playerId] = msg.approve;
       if (Object.keys(g.proposal!.votes).length === room.players.length) resolveVote(room);
       return null;

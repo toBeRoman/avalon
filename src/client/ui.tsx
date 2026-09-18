@@ -1,5 +1,14 @@
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
+import { createPortal } from "react-dom";
 import type { Player, Side } from "../shared/types";
+import { ART } from "./art";
 
 /* ------------------------------------------------------------------ */
 /* Buttons                                                             */
@@ -73,17 +82,18 @@ export function Panel({ children, tone }: { children: ReactNode; tone?: Side | "
 }
 
 /**
- * Pins the primary action to the bottom of the viewport so the thing you have to
- * tap is never scrolled off a small screen.
+ * The shell hands Sticky a slot below the scrolling area. A `position: sticky`
+ * footer would be pinned *over* the content when a screen is taller than the
+ * viewport, which on the role reveal covered the card and ate the tap that was
+ * supposed to reveal it. Rendering into a slot of its own cannot overlap anything.
  */
+export const ActionSlot = createContext<HTMLElement | null>(null);
+
 export function Sticky({ children }: { children: ReactNode }) {
-  return (
-    <div className="sticky bottom-0 -mx-4 mt-auto px-4">
-      {/* A short fade so content scrolling underneath does not just stop dead. */}
-      <div className="h-6 bg-linear-to-t from-ink to-transparent" />
-      <div className="space-y-3 bg-ink pb-1">{children}</div>
-    </div>
-  );
+  const slot = useContext(ActionSlot);
+  const content = <div className="space-y-3">{children}</div>;
+  // Outside a room (or before the slot mounts) fall back to rendering in place.
+  return slot ? createPortal(content, slot) : content;
 }
 
 export function Note({ children }: { children: ReactNode }) {
@@ -193,20 +203,30 @@ export function HoldToReveal({
       onPointerLeave={end}
       onContextMenu={(e) => e.preventDefault()}
       className={[
-        "relative select-none rounded-2xl border transition",
+        "select-none rounded-2xl border transition",
         held ? "border-ember bg-surface" : "border-edge-bright bg-raised",
       ].join(" ")}
       style={{ WebkitUserSelect: "none", WebkitTouchCallout: "none" }}
     >
-      <div className={held ? "p-5" : "pointer-events-none select-none p-5 opacity-0"}>
-        {children}
-      </div>
-      {!held ? (
-        <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 px-6 text-center">
-          <span className="font-display text-lg text-ember">{label}</span>
-          <span className="text-xs text-dim">Nobody else can see this. Keep it that way.</span>
+      {held ? (
+        <div className="art-reveal max-h-[min(86vh,816px)] min-h-[504px] overflow-y-auto overscroll-contain p-5">
+          {children}
         </div>
-      ) : null}
+      ) : (
+        <div className="relative min-h-[504px] overflow-hidden rounded-2xl">
+          <img
+            src={ART.roleBack}
+            alt=""
+            className="absolute inset-0 h-full w-full object-cover opacity-90"
+            draggable={false}
+          />
+          <div className="absolute inset-0 bg-ink/55" />
+          <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 px-6 text-center">
+            <span className="font-display text-lg text-ember">{label}</span>
+            <span className="text-xs text-parchment/80">Nobody else can see this. Keep it that way.</span>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

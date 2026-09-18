@@ -2,6 +2,7 @@ import { useState } from "react";
 import { claimSeat, createRoom, joinRoom } from "../api";
 import { Rules } from "../Rules";
 import { lastName, rememberName, type Credentials } from "../session";
+import { ART } from "../art";
 import { Button, Note, Sheet } from "../ui";
 
 type Mode = "menu" | "create" | "join" | "claim";
@@ -60,9 +61,16 @@ export default function Home({ onReady }: { onReady: (credentials: Credentials) 
   );
 
   return (
-    <div className="flex min-h-full flex-col justify-between px-5 pb-8 pt-16">
-      <div className="space-y-8">
-        <header className="space-y-2 text-center">
+    <div className="relative flex min-h-full flex-col justify-between overflow-hidden px-5 pb-8 pt-16">
+      <div
+        className="pointer-events-none absolute inset-0 bg-cover bg-center opacity-35"
+        style={{ backgroundImage: `url(${ART.keyArt})` }}
+        aria-hidden
+      />
+      <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-ink/70 via-ink/85 to-ink" aria-hidden />
+      <div className="relative z-10 space-y-8">
+        <header className="space-y-3 text-center">
+          <img src={ART.crown} alt="" className="mx-auto h-10 w-10 opacity-90" draggable={false} />
           <h1 className="font-display text-5xl tracking-wide text-ember">Avalon</h1>
           <p className="text-sm text-dim">
             Five to ten players. No cards, no narrator, no closing your eyes.
@@ -145,7 +153,7 @@ export default function Home({ onReady }: { onReady: (credentials: Credentials) 
         ) : null}
       </div>
 
-      <footer className="flex justify-center gap-6 pt-10 text-sm text-dim">
+      <footer className="relative z-10 flex justify-center gap-6 pt-10 text-sm text-dim">
         <button type="button" onClick={() => setRules(true)} className="underline underline-offset-4">
           How to play
         </button>

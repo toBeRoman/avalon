@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 360" role="img" aria-label="Eldermere canonical five-point crown emblem">
+  <defs>
+    <linearGradient id="gold" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#f2d889"/>
+      <stop offset="0.5" stop-color="#c29135"/>
+      <stop offset="1" stop-color="#795116"/>
+    </linearGradient>
+  </defs>
+  <path fill="url(#gold)" d="M80 222 100 86l50 80 40-104 40 94 26-124 26 124 40-94 40 104 50-80 20 136H80Z"/>
+  <path fill="none" stroke="#563911" stroke-linejoin="round" stroke-width="12" d="M80 222 100 86l50 80 40-104 40 94 26-124 26 124 40-94 40 104 50-80 20 136H80Z"/>
+  <path fill="url(#gold)" stroke="#563911" stroke-linejoin="round" stroke-width="12" d="M94 222h324v70H94z"/>
+  <path fill="none" stroke="#f6dd92" stroke-linecap="round" stroke-width="7" d="M113 244h286M113 271h286"/>
+  <circle cx="170" cy="257" r="10" fill="#54360d"/>
+  <circle cx="256" cy="257" r="10" fill="#54360d"/>
+  <circle cx="342" cy="257" r="10" fill="#54360d"/>
+</svg>

@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { ROLE_NAMES, sideOf } from "../../shared/rules";
 import type { ClientMessage, View } from "../../shared/types";
+import { roleArt } from "../art";
 import { nameOf } from "../game";
 import { Button, Note, Panel, PlayerButton, Screen, Sticky, Tag, Title } from "../ui";
 
@@ -103,11 +104,17 @@ export function EndedScreen({
             return (
               <div
                 key={id}
-                className={`flex items-center justify-between rounded-xl border px-4 py-3 ${
+                className={`flex items-center gap-3 rounded-xl border px-3 py-2 ${
                   evil ? "border-evil/40 bg-evil/10" : "border-good/40 bg-good/10"
                 }`}
               >
-                <span className="font-medium">
+                <img
+                  src={roleArt(role)}
+                  alt=""
+                  className="h-12 w-12 shrink-0 rounded-lg object-cover object-top"
+                  draggable={false}
+                />
+                <span className="min-w-0 flex-1 font-medium">
                   {nameOf(view.players, id)}
                   {id === view.you.id ? <span className="text-dim"> (you)</span> : null}
                 </span>

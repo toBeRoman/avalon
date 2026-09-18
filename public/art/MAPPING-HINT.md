@@ -1,0 +1,13 @@
+Eldermere → Avalon suggested mapping (implement in MAPPING.md):
+- knight-crown-a/b/c → Loyal Servant / generic Good
+- oracle → Merlin
+- herald → Percival
+- enchantress → Morgana (or Lady)
+- executioner → Assassin
+- usurper → Mordred
+- wanderer → Oberon
+- cultist-a/b → Minion / evil generic
+- diviner → Lady of the Lake
+- victory → quest success
+- sabotage → quest fail
+- role-card-back → face-down role

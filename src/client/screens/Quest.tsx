@@ -1,4 +1,5 @@
 import type { ClientMessage, View } from "../../shared/types";
+import { questArt } from "../art";
 import { nameOf } from "../game";
 import { Button, Note, Panel, Screen, Sticky, Tag, Title } from "../ui";
 
@@ -109,6 +110,15 @@ export function QuestRevealScreen({
           Quest {result.round} {result.success ? "succeeded" : "failed"}
         </span>
       </Title>
+
+      <div className="overflow-hidden rounded-2xl border border-edge-bright shadow-lg">
+        <img
+          src={questArt(result.success)}
+          alt=""
+          className="art-reveal block h-40 w-full object-cover object-center"
+          draggable={false}
+        />
+      </div>
 
       <Panel tone={result.success ? "good" : "evil"}>
         <div className="flex items-center justify-center gap-3 py-2">

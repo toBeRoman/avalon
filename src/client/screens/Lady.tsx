@@ -1,5 +1,6 @@
 import { useState } from "react";
 import type { ClientMessage, View } from "../../shared/types";
+import { ART } from "../art";
 import { nameOf } from "../game";
 import { Button, HoldToReveal, Note, Panel, PlayerButton, Screen, Sticky, Tag, Title } from "../ui";
 
@@ -33,6 +34,9 @@ export function LadyScreen({
 
   return (
     <Screen>
+      <div className="mx-auto mb-2 h-24 w-24 overflow-hidden rounded-full border border-edge-bright shadow-md">
+        <img src={ART.lady} alt="" className="h-full w-full object-cover object-top" draggable={false} />
+      </div>
       <Title sub="Pick someone to inspect. You will privately see whether they are good or evil, and then the token passes to them.">
         You hold the Lady of the Lake
       </Title>

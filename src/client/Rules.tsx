@@ -12,6 +12,7 @@ const SECTIONS: { heading: string; body: string[] }[] = [
     heading: "A round",
     body: [
       "The leader proposes a team for this quest. Everyone votes to approve or reject it, out in the open.",
+      "House rule: the leader has to approve their own team. Everybody else votes freely.",
       "If the team is rejected, the leader passes to the next player and they try again. Five rejections in a row and evil wins on the spot.",
       "If it is approved, only the players on the team secretly play a card. Good must play Success. Evil may play Success or Fail.",
       "One Fail sinks the quest — except the fourth quest in a game of seven or more, which needs two.",

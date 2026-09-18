@@ -39,6 +39,10 @@ These were chosen with the original owner and should not be "fixed" without aski
 - **Reveal screens only wait on *connected* players**, so someone dropping out never leaves
   everyone else stuck on a "Continue" screen.
 - **5–10 players only**, using the official tables. No house-ruled 11+ support.
+- **House rule: the proposer is locked into approving their own team.** Official Avalon lets the
+  leader reject their own proposal; this build forbids it, on the server as well as in the UI.
+  Everyone else votes freely. Enforced in `applyAction`'s `vote` case and covered by two unit
+  tests and one end-to-end check.
 
 ---
 
@@ -150,6 +154,10 @@ Rules worth knowing when reading the code:
   seat. A four-digit claim code appears. The replacement phone enters the room code and the
   claim code, gets a **fresh token**, and the old phone's socket is closed with code `4001`.
   The seat keeps its role and all its knowledge.
+- **The primary action lives outside the scrolling area.** `Sticky` portals into an
+  `ActionSlot` rendered by the shell below `<main>`. An earlier `position: sticky` footer was
+  pinned *over* the content on short viewports and swallowed the tap meant for the role card.
+  Do not move it back into the scroll container.
 - **Wake lock** keeps screens alive during a game; **vibration** fires when it becomes your
   turn. Both are best-effort — iOS Safari has no vibration API, which is why the persistent
   "waiting on Dave, Priya" strip is the real mechanism.

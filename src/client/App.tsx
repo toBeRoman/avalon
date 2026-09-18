@@ -10,6 +10,7 @@ import {
 } from "./session";
 import { useBuzz, useRoom, useWakeLock, type Status } from "./useRoom";
 import {
+  ActionSlot,
   Button,
   HoldToReveal,
   Note,
@@ -60,6 +61,7 @@ function RoomShell({
 }) {
   const { view, status, error, evictionReason, send, clearError } = useRoom(credentials);
   const [sheet, setSheet] = useState<SheetName>(null);
+  const [actionSlot, setActionSlot] = useState<HTMLElement | null>(null);
 
   const inGame = !!view && view.phase !== "lobby";
   useWakeLock(inGame);
@@ -100,9 +102,17 @@ function RoomShell({
 
       <Header view={view} status={status} onMenu={() => setSheet("manage")} />
 
-      <main className="flex min-h-0 flex-1 flex-col overflow-y-auto">
-        <Phase view={view} send={send} />
-      </main>
+      <ActionSlot.Provider value={actionSlot}>
+        <main className="flex min-h-0 flex-1 flex-col overflow-y-auto">
+          <Phase view={view} send={send} />
+        </main>
+
+        {/* Screens portal their primary action in here. Hidden when a screen has none. */}
+        <div
+          ref={setActionSlot}
+          className="shrink-0 border-t border-edge bg-ink px-4 py-3 empty:hidden"
+        />
+      </ActionSlot.Provider>
 
       <WaitingStrip view={view} />
 

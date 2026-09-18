@@ -1,5 +1,6 @@
 import { ROLE_NAMES, sideOf } from "../shared/rules";
 import type { LogEntry, Player, RoleId, View } from "../shared/types";
+import { roleArt } from "./art";
 import { Note, Panel, Tag } from "./ui";
 
 export const nameOf = (players: Player[], id: string) =>
@@ -83,6 +84,14 @@ export function RoleCard({ view }: { view: View }) {
 
   return (
     <div className="space-y-4">
+      <div className="overflow-hidden rounded-xl border border-edge-bright shadow-lg">
+        <img
+          src={roleArt(you.role)}
+          alt=""
+          className="role-portrait block h-40 w-full object-cover object-top"
+          draggable={false}
+        />
+      </div>
       <div>
         <p className="text-xs uppercase tracking-widest text-dim">You are</p>
         <p className={`font-display text-3xl ${evil ? "text-evil" : "text-good"}`}>

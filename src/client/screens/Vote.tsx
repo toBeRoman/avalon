@@ -13,6 +13,7 @@ export function VoteScreen({
   const proposal = game.proposal!;
   const youVoted = proposal.voted.includes(view.you.id);
   const remaining = view.players.length - proposal.voted.length;
+  const youProposed = proposal.leaderId === view.you.id;
 
   return (
     <Screen>
@@ -58,12 +59,17 @@ export function VoteScreen({
           <Button variant="good" onClick={() => send({ t: "vote", approve: true })}>
             Approve
           </Button>
-          <Button variant="evil" onClick={() => send({ t: "vote", approve: false })}>
+          <Button
+            variant="evil"
+            disabled={youProposed}
+            onClick={() => send({ t: "vote", approve: false })}
+          >
             Reject
           </Button>
           <Note>
-            Nobody sees your vote until the last person has voted, and then everybody sees all of
-            them.
+            {youProposed
+              ? "You put this team forward, so you have to stand behind it. Everyone else is free to reject."
+              : "Nobody sees your vote until the last person has voted, and then everybody sees all of them."}
           </Note>
         </Sticky>
       )}

@@ -73,3 +73,33 @@ textarea {
 .pulse {
   animation: pulse-ember 1.8s ease-in-out infinite;
 }
+
+
+/* Illustrated UI — respect reduced motion */
+@keyframes art-reveal {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.art-reveal {
+  animation: art-reveal 420ms ease-out;
+}
+
+.role-portrait {
+  animation: art-reveal 480ms ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .art-reveal,
+  .role-portrait,
+  .rise,
+  .pulse {
+    animation: none !important;
+  }
+}
