@@ -57,6 +57,21 @@ export default function Lobby({
         </button>
       </div>
 
+      {view.scores.games > 0 ? (
+        <Panel>
+          <div className="flex items-center justify-between">
+            <span className="text-xs uppercase tracking-widest text-dim">
+              Tonight · {view.scores.games} {view.scores.games === 1 ? "game" : "games"}
+            </span>
+            <span className="font-display text-lg">
+              <span className="text-good">{view.scores.good}</span>
+              <span className="text-dim"> — </span>
+              <span className="text-evil">{view.scores.evil}</span>
+            </span>
+          </div>
+        </Panel>
+      ) : null}
+
       <Panel>
         <div className="mb-3 flex items-baseline justify-between">
           <h3 className="font-display text-lg">

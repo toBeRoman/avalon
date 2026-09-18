@@ -95,6 +95,64 @@ export function EndedScreen({
         <p className="mt-2 text-sm text-dim">{outcome.reason}</p>
       </div>
 
+      {game.quests.length ? (
+        <Panel>
+          <p className="mb-3 text-xs uppercase tracking-widest text-dim">Who played what</p>
+          <div className="space-y-3">
+            {game.quests.map((quest) => (
+              <div key={quest.round}>
+                <p className="mb-1 text-sm">
+                  <span className={quest.success ? "text-good" : "text-evil"}>
+                    Quest {quest.round} {quest.success ? "succeeded" : "failed"}
+                  </span>
+                </p>
+                <div className="flex flex-wrap gap-1.5">
+                  {quest.team.map((id) => {
+                    const failed = quest.cards[id] === false;
+                    return (
+                      <span
+                        key={id}
+                        className={`rounded-full border px-2.5 py-1 text-xs ${
+                          failed ? "border-evil bg-evil/20 text-evil" : "border-edge text-dim"
+                        }`}
+                      >
+                        {nameOf(view.players, id)}
+                        {failed ? " — Fail" : ""}
+                      </span>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
+          </div>
+        </Panel>
+      ) : null}
+
+      {view.scores.games > 0 ? (
+        <Panel>
+          <p className="mb-2 text-xs uppercase tracking-widest text-dim">
+            Tonight · {view.scores.games} {view.scores.games === 1 ? "game" : "games"}
+          </p>
+          <p className="font-display text-2xl">
+            <span className="text-good">Good {view.scores.good}</span>
+            <span className="text-dim"> — </span>
+            <span className="text-evil">Evil {view.scores.evil}</span>
+          </p>
+          <div className="mt-3 flex flex-wrap gap-1.5">
+            {[...view.players]
+              .sort(
+                (a, b) =>
+                  (view.scores.players[b.id]?.won ?? 0) - (view.scores.players[a.id]?.won ?? 0),
+              )
+              .map((player) => (
+                <Tag key={player.id}>
+                  {player.name} {view.scores.players[player.id]?.won ?? 0}
+                </Tag>
+              ))}
+          </div>
+        </Panel>
+      ) : null}
+
       <Panel>
         <p className="mb-3 text-xs uppercase tracking-widest text-dim">Everyone's cards</p>
         <div className="space-y-2">

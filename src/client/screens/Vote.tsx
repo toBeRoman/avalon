@@ -14,6 +14,7 @@ export function VoteScreen({
   const youVoted = proposal.voted.includes(view.you.id);
   const remaining = view.players.length - proposal.voted.length;
   const youProposed = proposal.leaderId === view.you.id;
+  const yourVote = game.yourVote;
 
   return (
     <Screen>
@@ -37,42 +38,39 @@ export function VoteScreen({
       <VoteTrack attempt={game.attempt} />
 
       {youVoted ? (
-        <>
-          <Panel>
-            <p className="text-center font-display text-xl text-ember">Vote locked in</p>
-            <Note>
-              {remaining
-                ? `Waiting on ${remaining} more ${remaining === 1 ? "vote" : "votes"}. Everything reveals at once.`
-                : "Counting the votes…"}
-            </Note>
-          </Panel>
-          <div className="flex flex-wrap justify-center gap-1.5">
-            {view.players.map((player) => (
-              <Tag key={player.id} tone={proposal.voted.includes(player.id) ? "ember" : undefined}>
-                {player.name}
-              </Tag>
-            ))}
-          </div>
-        </>
-      ) : (
-        <Sticky>
-          <Button variant="good" onClick={() => send({ t: "vote", approve: true })}>
-            Approve
-          </Button>
-          <Button
-            variant="evil"
-            disabled={youProposed}
-            onClick={() => send({ t: "vote", approve: false })}
-          >
-            Reject
-          </Button>
-          <Note>
-            {youProposed
-              ? "You put this team forward, so you have to stand behind it. Everyone else is free to reject."
+        <div className="flex flex-wrap justify-center gap-1.5">
+          {view.players.map((player) => (
+            <Tag key={player.id} tone={proposal.voted.includes(player.id) ? "ember" : undefined}>
+              {player.name}
+            </Tag>
+          ))}
+        </div>
+      ) : null}
+
+      <Sticky>
+        <Button
+          variant={yourVote === true ? "good" : "ghost"}
+          onClick={() => send({ t: "vote", approve: true })}
+        >
+          {yourVote === true ? "Approving ✓" : "Approve"}
+        </Button>
+        <Button
+          variant={yourVote === false ? "evil" : "ghost"}
+          disabled={youProposed}
+          onClick={() => send({ t: "vote", approve: false })}
+        >
+          {yourVote === false ? "Rejecting ✓" : "Reject"}
+        </Button>
+        <Note>
+          {youProposed && yourVote === null
+            ? "You put this team forward, so you have to stand behind it. Everyone else is free to reject."
+            : youVoted
+              ? remaining
+                ? `Waiting on ${remaining} more ${remaining === 1 ? "vote" : "votes"}. You can still change your mind — nothing is visible until the last vote lands.`
+                : "Counting the votes…"
               : "Nobody sees your vote until the last person has voted, and then everybody sees all of them."}
-          </Note>
-        </Sticky>
-      )}
+        </Note>
+      </Sticky>
     </Screen>
   );
 }

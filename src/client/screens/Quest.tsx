@@ -14,6 +14,7 @@ export function QuestScreen({
   const team = game.proposal!.team;
   const onTeam = team.includes(view.you.id);
   const played = view.you.hasPlayedCard;
+  const card = game.yourCard;
   const outstanding = team.filter((id) => !game.played.includes(id));
 
   return (
@@ -55,29 +56,29 @@ export function QuestScreen({
             {outstanding.map((id) => nameOf(view.players, id)).join(", ") || "nobody"}.
           </Note>
         </Panel>
-      ) : played ? (
-        <Panel>
-          <p className="text-center font-display text-xl text-ember">Card played</p>
-          <Note>
-            The cards are shuffled before they are shown, so nobody learns who played what — only
-            how many fails there were.
-          </Note>
-        </Panel>
       ) : (
         <Sticky>
-          <Button variant="good" onClick={() => send({ t: "quest", success: true })}>
-            Play Success
+          <Button
+            variant={card === true ? "good" : "ghost"}
+            onClick={() => send({ t: "quest", success: true })}
+          >
+            {card === true ? "Playing Success ✓" : "Play Success"}
           </Button>
           {view.you.mayFail ? (
-            <Button variant="evil" onClick={() => send({ t: "quest", success: false })}>
-              Play Fail
+            <Button
+              variant={card === false ? "evil" : "ghost"}
+              onClick={() => send({ t: "quest", success: false })}
+            >
+              {card === false ? "Playing Fail ✓" : "Play Fail"}
             </Button>
-          ) : (
-            <Note>
-              You are loyal to Arthur, so Success is your only option. That is why a failed quest
-              always means a spy was on it.
-            </Note>
-          )}
+          ) : null}
+          <Note>
+            {!view.you.mayFail
+              ? "You are loyal to Arthur, so Success is your only option. That is why a failed quest always means a spy was on it."
+              : played
+                ? "You can still swap your card until the last one is in. Nobody ever learns who played what."
+                : "The cards are shuffled before they are counted, so only the number of fails is ever shown."}
+          </Note>
         </Sticky>
       )}
     </Screen>

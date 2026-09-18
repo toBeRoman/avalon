@@ -7,7 +7,7 @@ import {
   type ReactNode,
 } from "react";
 import { createPortal } from "react-dom";
-import type { Player, Side } from "../shared/types";
+import type { Insight, Player, Side } from "../shared/types";
 import { ART } from "./art";
 
 /* ------------------------------------------------------------------ */
@@ -176,10 +176,13 @@ export function Tag({ children, tone }: { children: ReactNode; tone?: Side | "em
  */
 export function HoldToReveal({
   children,
+  art,
   label = "Hold to reveal",
   onFirstReveal,
 }: {
   children: ReactNode;
+  /** Shown full-bleed behind the secret while it is held. */
+  art?: string;
   label?: string;
   onFirstReveal?: () => void;
 }) {
@@ -193,41 +196,109 @@ export function HoldToReveal({
       onFirstReveal?.();
     }
   };
-  const end = () => setHeld(false);
+
+  // Let go anywhere — off the element, or because the phone stole focus — and it hides.
+  useEffect(() => {
+    if (!held) return;
+    const hide = () => setHeld(false);
+    window.addEventListener("pointerup", hide);
+    window.addEventListener("pointercancel", hide);
+    window.addEventListener("blur", hide);
+    return () => {
+      window.removeEventListener("pointerup", hide);
+      window.removeEventListener("pointercancel", hide);
+      window.removeEventListener("blur", hide);
+    };
+  }, [held]);
 
   return (
-    <div
-      onPointerDown={start}
-      onPointerUp={end}
-      onPointerCancel={end}
-      onPointerLeave={end}
-      onContextMenu={(e) => e.preventDefault()}
-      className={[
-        "select-none rounded-2xl border transition",
-        held ? "border-ember bg-surface" : "border-edge-bright bg-raised",
-      ].join(" ")}
-      style={{ WebkitUserSelect: "none", WebkitTouchCallout: "none" }}
-    >
-      {held ? (
-        <div className="art-reveal max-h-[min(86vh,816px)] min-h-[504px] overflow-y-auto overscroll-contain p-5">
-          {children}
+    <>
+      <div
+        onPointerDown={start}
+        onContextMenu={(e) => e.preventDefault()}
+        className="relative min-h-64 select-none overflow-hidden rounded-2xl border border-edge-bright"
+        style={{ WebkitUserSelect: "none", WebkitTouchCallout: "none" }}
+      >
+        <img
+          src={ART.roleBack}
+          alt=""
+          className="absolute inset-0 h-full w-full object-cover opacity-90"
+          draggable={false}
+        />
+        <div className="absolute inset-0 bg-ink/55" />
+        <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 px-6 text-center">
+          <span className="font-display text-lg text-ember">{label}</span>
+          <span className="text-xs text-parchment/80">
+            Nobody else can see this. Keep it that way.
+          </span>
         </div>
-      ) : (
-        <div className="relative min-h-[504px] overflow-hidden rounded-2xl">
-          <img
-            src={ART.roleBack}
-            alt=""
-            className="absolute inset-0 h-full w-full object-cover opacity-90"
-            draggable={false}
-          />
-          <div className="absolute inset-0 bg-ink/55" />
-          <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 px-6 text-center">
-            <span className="font-display text-lg text-ember">{label}</span>
-            <span className="text-xs text-parchment/80">Nobody else can see this. Keep it that way.</span>
-          </div>
-        </div>
-      )}
-    </div>
+      </div>
+
+      {/*
+        Held, the secret takes the whole screen: the art full-bleed, the words over a
+        scrim on top of it. Boxed into the page it was clipped by whatever room the
+        layout happened to have, which on a short phone cut the bottom off the card.
+      */}
+      {held
+        ? createPortal(
+            <div className="art-reveal fixed inset-0 z-[90] overflow-hidden bg-ink">
+              {art ? (
+                <img
+                  src={art}
+                  alt=""
+                  className="absolute inset-0 h-full w-full object-cover object-top"
+                  draggable={false}
+                />
+              ) : null}
+              {/* Dark enough to read against, sheer enough to keep the picture. */}
+              <div className="absolute inset-0 bg-linear-to-b from-ink/70 via-ink/80 to-ink/95" />
+              <div
+                className="absolute inset-0 flex flex-col overflow-y-auto overscroll-contain"
+                style={{
+                  paddingTop: "max(1.5rem, env(safe-area-inset-top))",
+                  paddingBottom: "max(1.5rem, env(safe-area-inset-bottom))",
+                }}
+              >
+                <div className="m-auto w-full max-w-md px-5">{children}</div>
+                <p className="shrink-0 pt-4 text-center text-xs text-parchment/60">
+                  Lift your finger to hide this
+                </p>
+              </div>
+            </div>,
+            document.body,
+          )
+        : null}
+    </>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* Insights                                                            */
+/* ------------------------------------------------------------------ */
+
+const INSIGHT_TONE = {
+  neutral: "border-edge-bright text-parchment/85",
+  good: "border-good/50 text-good",
+  evil: "border-evil/50 text-evil",
+  warn: "border-ember/50 text-ember",
+};
+
+export function Insights({ items, title }: { items: Insight[]; title: string }) {
+  if (!items.length) return null;
+  return (
+    <section className="space-y-2">
+      <p className="text-xs uppercase tracking-widest text-dim">{title}</p>
+      <ul className="space-y-2">
+        {items.map((item, index) => (
+          <li
+            key={index}
+            className={`rounded-xl border bg-ink/50 px-3 py-2 text-sm leading-relaxed ${INSIGHT_TONE[item.tone]}`}
+          >
+            {item.text}
+          </li>
+        ))}
+      </ul>
+    </section>
   );
 }
 

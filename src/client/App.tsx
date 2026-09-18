@@ -1,5 +1,6 @@
 import { useState } from "react";
 import type { ClientMessage, View } from "../shared/types";
+import { roleArt } from "./art";
 import { History, nameOf, QuestBoard, RoleCard } from "./game";
 import { Rules } from "./Rules";
 import {
@@ -264,7 +265,7 @@ function Sheets({
   return (
     <>
       <SheetShell open={name === "role"} onClose={onClose} title="Your card">
-        <HoldToReveal>
+        <HoldToReveal art={view.you.role ? roleArt(view.you.role) : undefined}>
           <RoleCard view={view} />
         </HoldToReveal>
       </SheetShell>
@@ -295,6 +296,7 @@ function Manage({
   onLeave: () => void;
 }) {
   const [releasing, setReleasing] = useState(false);
+  const [abandoning, setAbandoning] = useState(false);
 
   if (view.claim) {
     return (
@@ -366,6 +368,47 @@ function Manage({
               Hand a seat to another phone
             </Button>
           )}
+        </section>
+      ) : null}
+
+      {view.you.isHost && view.phase !== "lobby" ? (
+        <section className="space-y-2">
+          <h4 className="font-display text-base text-ember">Start over</h4>
+          <Note>
+            Throws this game away and puts everyone back in the lobby with the same seats. Nothing
+            is scored. Use it if a game has gone wrong or somebody has to drop out for good.
+          </Note>
+          {abandoning ? (
+            <div className="space-y-2">
+              <Button
+                variant="evil"
+                onClick={() => {
+                  send({ t: "abandon" });
+                  setAbandoning(false);
+                }}
+              >
+                Yes, abandon this game
+              </Button>
+              <Button variant="quiet" onClick={() => setAbandoning(false)}>
+                Keep playing
+              </Button>
+            </div>
+          ) : (
+            <Button variant="ghost" onClick={() => setAbandoning(true)}>
+              Abandon this game
+            </Button>
+          )}
+        </section>
+      ) : null}
+
+      {view.scores.games > 0 ? (
+        <section className="space-y-2">
+          <h4 className="font-display text-base text-ember">Tonight</h4>
+          <p className="font-display text-xl">
+            <span className="text-good">Good {view.scores.good}</span>
+            <span className="text-dim"> — </span>
+            <span className="text-evil">Evil {view.scores.evil}</span>
+          </p>
         </section>
       ) : null}
 

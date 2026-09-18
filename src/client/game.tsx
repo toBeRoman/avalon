@@ -1,7 +1,6 @@
 import { ROLE_NAMES, sideOf } from "../shared/rules";
 import type { LogEntry, Player, RoleId, View } from "../shared/types";
-import { roleArt } from "./art";
-import { Note, Panel, Tag } from "./ui";
+import { Insights, Note, Panel, Tag } from "./ui";
 
 export const nameOf = (players: Player[], id: string) =>
   players.find((p) => p.id === id)?.name ?? "someone";
@@ -84,14 +83,6 @@ export function RoleCard({ view }: { view: View }) {
 
   return (
     <div className="space-y-4">
-      <div className="overflow-hidden rounded-xl border border-edge-bright shadow-lg">
-        <img
-          src={roleArt(you.role)}
-          alt=""
-          className="role-portrait block h-40 w-full object-cover object-top"
-          draggable={false}
-        />
-      </div>
       <div>
         <p className="text-xs uppercase tracking-widest text-dim">You are</p>
         <p className={`font-display text-3xl ${evil ? "text-evil" : "text-good"}`}>
@@ -121,6 +112,8 @@ export function RoleCard({ view }: { view: View }) {
         </div>
       ) : null}
 
+      <Insights items={view.insights} title="What your card tells you" />
+
       {game?.ladyFindings.length ? (
         <div className="space-y-2 rounded-xl border border-edge bg-ink/50 p-3">
           <p className="text-xs uppercase tracking-widest text-dim">
@@ -146,11 +139,14 @@ export function RoleCard({ view }: { view: View }) {
 
 export function History({ view }: { view: View }) {
   const game = view.game;
-  if (!game?.log.length) return <Note>Nothing has happened yet.</Note>;
+  if (!game?.log.length && !view.tableInsights.length)
+    return <Note>Nothing has happened yet.</Note>;
 
   return (
-    <div className="space-y-3">
-      {game.log.map((entry, index) => (
+    <div className="space-y-4">
+      <Insights items={view.tableInsights} title="What the table can work out" />
+      {!game?.log.length ? <Note>No rounds played yet.</Note> : null}
+      {(game?.log ?? []).map((entry, index) => (
         <LogRow key={index} entry={entry} players={view.players} />
       ))}
     </div>

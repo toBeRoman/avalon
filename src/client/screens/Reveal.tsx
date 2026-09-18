@@ -1,5 +1,6 @@
 import { useState } from "react";
 import type { ClientMessage, View } from "../../shared/types";
+import { roleArt } from "../art";
 import { RoleCard } from "../game";
 import { Button, HoldToReveal, Note, Screen, Sticky, Title } from "../ui";
 
@@ -20,7 +21,10 @@ export default function Reveal({
         Your role
       </Title>
 
-      <HoldToReveal onFirstReveal={() => setSeen(true)}>
+      <HoldToReveal
+        art={view.you.role ? roleArt(view.you.role) : undefined}
+        onFirstReveal={() => setSeen(true)}
+      >
         <RoleCard view={view} />
       </HoldToReveal>
 

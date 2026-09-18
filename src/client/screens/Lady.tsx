@@ -101,7 +101,7 @@ export function LadyRevealScreen({
         {nameOf(view.players, lady.targetId)} is…
       </Title>
 
-      <HoldToReveal label="Hold to see their loyalty">
+      <HoldToReveal art={ART.lady} label="Hold to see their loyalty">
         <div className="py-6 text-center">
           <p className={`font-display text-5xl ${evil ? "text-evil" : "text-good"}`}>
             {evil ? "Evil" : "Good"}
