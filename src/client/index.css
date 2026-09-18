@@ -1,0 +1,75 @@
+@import "tailwindcss";
+
+@theme {
+  /* Warm near-black so the screen never blows out night vision round a fire. */
+  --color-ink: #0b0906;
+  --color-surface: #15110b;
+  --color-raised: #1f1810;
+  --color-edge: #322717;
+  --color-edge-bright: #4a3a22;
+  --color-parchment: #f3e8d5;
+  --color-dim: #a39073;
+  --color-ember: #e8963c;
+  --color-ember-dim: #8a5a24;
+  --color-good: #7fa9d4;
+  --color-evil: #c9483c;
+
+  --font-display: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--color-ink);
+  color: var(--color-parchment);
+  font-family: var(--font-sans);
+  /* Phones get thumbed hard in the dark; kill the zoom and bounce. */
+  touch-action: manipulation;
+  overscroll-behavior: none;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Stop iOS zooming the page when a text field is focused. */
+input,
+button,
+select,
+textarea {
+  font: inherit;
+  font-size: 16px;
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.rise {
+  animation: rise 220ms ease-out;
+}
+
+@keyframes pulse-ember {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.45;
+  }
+}
+
+.pulse {
+  animation: pulse-ember 1.8s ease-in-out infinite;
+}

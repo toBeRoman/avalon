@@ -1,0 +1,63 @@
+# Avalon
+
+*The Resistance: Avalon*, played on everyone's phone. Built for a campfire: no cards, no
+tokens, no narrator, and nobody has to close their eyes.
+
+One person creates a room and reads out the four-letter code. Everybody else joins on their
+own phone. The app deals the roles, tells each player privately what they know, runs the
+proposals, votes and quests, and handles the Assassin at the end.
+
+## Playing
+
+- **5 to 10 players.** Official quest sizes and evil counts; the fourth quest needs two fails
+  at seven or more.
+- **Host toggles the special roles** — Percival, Morgana, Mordred, Oberon and the Lady of the
+  Lake. Illegal combinations are blocked with an explanation (Morgana + Mordred needs three
+  evil seats, so it will not deal at five players).
+- **Hold to reveal.** Your role card only shows while your finger is on it, so it cannot be
+  read over your shoulder or left face up on a rock.
+- **Full history.** Every proposal, every vote and every quest result stays scrollable, which
+  settles "who rejected round two?" without anyone having to remember.
+- **Built-in coaching** for people who have never played, on every screen.
+
+## When things go wrong at a campsite
+
+- Phones lock and sockets drop constantly. All state lives in the Durable Object, never on a
+  phone, and each device holds a token so a refresh, a lock or a lost signal puts you straight
+  back in your own seat.
+- If a phone dies for good, the host opens the room menu, hands that seat over, and reads out a
+  four-digit code. The replacement phone enters it and picks up the same role and the same
+  knowledge.
+- Everyone's screen shows exactly who the game is waiting on, so you know whose name to shout.
+- The screen is kept awake during a game, and it is all dark and warm so it does not blow out
+  anybody's night vision.
+
+## How it is built
+
+One Cloudflare Worker serves both the React app and the game server. Each room is a Durable
+Object holding the authoritative state and the players' WebSockets, using hibernation so an
+idle room costs nothing while everyone argues.
+
+The important part is `viewFor()` in `src/server/engine.ts`: every socket gets its own
+redacted view of the game. Roles, sealed votes and Lady of the Lake results are filtered out
+per player on the server, so the client never receives anything it should not show. That is
+why this repository can be public without spoiling a game.
+
+```
+src/shared/   rules and types used by both sides
+src/server/   the Worker router, the room Durable Object, and the game engine
+src/client/   the React app
+test/         the engine, including what may and may not go over the wire
+```
+
+## Running it
+
+```sh
+pnpm install
+pnpm dev      # http://localhost:5173
+pnpm check    # typecheck and tests
+pnpm deploy   # build and push to Cloudflare
+```
+
+Rooms are deleted after twelve hours of inactivity. Nothing is stored about anyone: no
+accounts, no analytics, no names beyond the game you are in.
