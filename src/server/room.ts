@@ -1,7 +1,14 @@
 import { DurableObject } from "cloudflare:workers";
-import { DEFAULT_OPTIONS, MAX_PLAYERS } from "../shared/rules";
+import { DEBUG_CODE, DEFAULT_OPTIONS, MAX_PLAYERS } from "../shared/rules";
 import type { ClientMessage, RoomState, ServerMessage } from "../shared/types";
-import { applyAction, canJoin, emptyScoreboard, settle, viewFor } from "../shared/engine";
+import {
+  applyAction,
+  canJoin,
+  emptyScoreboard,
+  runBots,
+  settle,
+  viewFor,
+} from "../shared/engine";
 
 /** Rooms are thrown away after this long with no activity. */
 const IDLE_MS = 12 * 60 * 60 * 1000;
@@ -67,6 +74,9 @@ export class RoomDO extends DurableObject<Env> {
       game: null,
       claim: null,
       scores: emptyScoreboard(),
+      debug: code === DEBUG_CODE,
+      forcedRole: null,
+      xray: false,
       createdAt: Date.now(),
       updatedAt: Date.now(),
     };
@@ -76,12 +86,34 @@ export class RoomDO extends DurableObject<Env> {
 
   async join(name: string): Promise<Credentials | { error: string }> {
     if (!this.room) return { error: "No room with that code." };
-    const problem = canJoin(this.room, name);
+
+    // The debug room is long-lived and gets rejoined constantly, so coming back
+    // under the same name takes your old seat rather than piling up duplicates.
+    if (this.room.debug) {
+      const existing = this.room.players.find(
+        (p) => !p.bot && p.name.toLowerCase() === name.trim().toLowerCase(),
+      );
+      if (existing) {
+        const token = crypto.randomUUID();
+        this.room.tokens[existing.id] = token;
+        for (const ws of this.socketsFor(existing.id)) ws.close(4001, "Seat reclaimed");
+        await this.save();
+        this.broadcast();
+        return { playerId: existing.id, token };
+      }
+    }
+
+    // Otherwise the debug room still lets you in regardless of state.
+    const problem = this.room.debug ? null : canJoin(this.room, name);
     if (problem) return { error: problem };
     const playerId = crypto.randomUUID();
     const token = crypto.randomUUID();
     this.room.players.push({ id: playerId, name: name.trim().slice(0, 16), connected: false });
     this.room.tokens[playerId] = token;
+    // A debug room whose host is a bot is useless; hand it to the first real player.
+    if (this.room.debug && this.room.players.find((p) => p.id === this.room!.hostId)?.bot) {
+      this.room.hostId = playerId;
+    }
     await this.save();
     this.broadcast();
     return { playerId, token };
@@ -162,6 +194,8 @@ export class RoomDO extends DurableObject<Env> {
       this.send(ws, { t: "error", message: error });
       return;
     }
+    // Bots take their turns immediately, so a debug room never sits waiting.
+    runBots(this.room);
     await this.save();
     this.broadcast();
   }

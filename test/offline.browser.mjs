@@ -18,6 +18,27 @@ const page = await ctx.newPage();
 await page.goto("http://localhost:4173");
 const shot = async (f) => { await page.waitForTimeout(250); await page.screenshot({ path: `${OUT}/${f}.png` }); console.log("shot " + f); };
 
+/**
+ * Takes the phone if it is being offered. The app only asks when the phone needs
+ * to change hands — if the same person is up again (the leader who proposed is
+ * often first to play a card) it goes straight to their screen.
+ */
+const takePhoneIfAsked = async (label, expected) => {
+  try {
+    await page
+      .locator("text=Pass the phone to")
+      .or(page.locator(expected))
+      .first()
+      .waitFor({ timeout: 15000 });
+  } catch (problem) {
+    console.error(`stuck before ${label}. On screen:\n${await page.locator("main").innerText()}`);
+    await page.screenshot({ path: `${OUT}/FAILED-${label}.png` });
+    throw problem;
+  }
+  const offer = page.getByRole("button", { name: /^I am / });
+  if (await offer.count()) await offer.click();
+};
+
 await page.getByRole("button", { name: /No signal/ }).click();
 const NAMES = ["Toby", "Dave", "Priya", "Sam", "Max"];
 for (let i = 0; i < NAMES.length; i++) await page.getByPlaceholder(`Player ${i + 1}`).fill(NAMES[i]);
@@ -41,7 +62,7 @@ const hold = async () => {
   await page.mouse.down();
 };
 for (let i = 0; i < NAMES.length; i++) {
-  await page.getByRole("button", { name: /^I am / }).click();
+  await takePhoneIfAsked(`reveal-${i}`, "text=Your role");
   await hold();
   await page.waitForTimeout(200);
   if (i === 0) await shot("03-reveal-offline");
@@ -51,7 +72,7 @@ for (let i = 0; i < NAMES.length; i++) {
 }
 
 // Proposal
-await page.getByRole("button", { name: /^I am / }).click();
+await takePhoneIfAsked("proposal", "text=You are the leader");
 await page.waitForSelector("text=You are the leader");
 const rows = page.locator("main button.min-h-14");
 await rows.nth(0).click(); await rows.nth(1).click();
@@ -61,21 +82,23 @@ await shot("04-local-vote");
 const yes = page.getByRole("button", { name: "Yes", exact: true });
 for (let i = 0; i < await yes.count(); i++) await yes.nth(i).click();
 await page.getByRole("button", { name: /Lock in the votes/ }).click();
-await page.waitForTimeout(400);
+await page.waitForSelector("text=/Approved|Rejected/");
 await shot("05-vote-reveal");
 await page.getByRole("button", { name: "Continue" }).click();
-await page.waitForTimeout(400);
 
 // Quest: pass to each team member
 for (let i = 0; i < 2; i++) {
-  await page.getByRole("button", { name: /^I am / }).click();
+  await takePhoneIfAsked(`quest-card-${i}`, "button:has-text('Play Success')");
   await page.getByRole("button", { name: /Play Success/ }).click();
-  await page.waitForTimeout(250);
 }
 await page.waitForSelector("text=/succeeded|failed/");
 await shot("06-quest-reveal");
 await page.getByRole("button", { name: "Continue" }).click();
-await page.waitForTimeout(400);
+await page
+  .locator("text=Pass the phone to")
+  .or(page.locator("text=You are the leader"))
+  .first()
+  .waitFor();
 const next = (await page.locator("main").innerText()).slice(0, 120).replace(/\n/g, " | ");
 console.log("next phase:", next);
 const offline = await page.evaluate(() => navigator.onLine);

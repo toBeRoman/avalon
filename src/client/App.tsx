@@ -24,6 +24,7 @@ import {
   Toast,
 } from "./ui";
 import Home from "./screens/Home";
+import { DebugPanel } from "./screens/Debug";
 import { LocalSetup, LocalVote, PassThePhone } from "./screens/Local";
 import { useLocalGame } from "./localGame";
 import Lobby from "./screens/Lobby";
@@ -153,7 +154,7 @@ function LocalShell({ local }: { local: ReturnType<typeof useLocalGame> }) {
 /* The room, with its persistent chrome                                */
 /* ------------------------------------------------------------------ */
 
-type SheetName = "role" | "history" | "rules" | "manage" | null;
+type SheetName = "role" | "history" | "rules" | "manage" | "debug" | null;
 
 function RoomShell({
   credentials,
@@ -223,20 +224,29 @@ function RoomShell({
 
       <WaitingStrip view={view} />
 
-      {inGame ? (
+      {inGame || view.debug.enabled ? (
         <nav
           className="flex shrink-0 gap-2 border-t border-edge bg-surface px-4 pt-3"
           style={{ paddingBottom: "max(0.75rem, env(safe-area-inset-bottom))" }}
         >
-          <Button small variant="ghost" onClick={() => setSheet("role")}>
-            My role
-          </Button>
-          <Button small variant="ghost" onClick={() => setSheet("history")}>
-            History
-          </Button>
+          {inGame ? (
+            <>
+              <Button small variant="ghost" onClick={() => setSheet("role")}>
+                My role
+              </Button>
+              <Button small variant="ghost" onClick={() => setSheet("history")}>
+                History
+              </Button>
+            </>
+          ) : null}
           <Button small variant="quiet" onClick={() => setSheet("rules")}>
             Rules
           </Button>
+          {view.debug.enabled ? (
+            <Button small variant={inGame ? "quiet" : "ghost"} onClick={() => setSheet("debug")}>
+              Debug
+            </Button>
+          ) : null}
         </nav>
       ) : null}
 
@@ -401,6 +411,10 @@ function Sheets({
 
       <SheetShell open={name === "rules"} onClose={onClose} title="How to play">
         <Rules options={view.options} />
+      </SheetShell>
+
+      <SheetShell open={name === "debug"} onClose={onClose} title="Debug">
+        <DebugPanel view={view} send={send} />
       </SheetShell>
 
       <SheetShell open={name === "manage"} onClose={onClose} title={local ? "Table" : "Room"}>

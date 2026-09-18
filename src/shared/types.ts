@@ -33,6 +33,8 @@ export interface Player {
   id: string;
   name: string;
   connected: boolean;
+  /** Filled seats in a debug room. Bots act for themselves. */
+  bot?: boolean;
 }
 
 export interface QuestRecord {
@@ -139,6 +141,12 @@ export interface RoomState {
   /** A seat the host has released so a replacement phone can claim it. */
   claim: { playerId: string; code: string } | null;
   scores: Scoreboard;
+  /** Only ever true for the reserved debug room. */
+  debug: boolean;
+  /** Debug: deal this role to the host, if the deck allows it. */
+  forcedRole: RoleId | null;
+  /** Debug: show the holder every role, for testing. */
+  xray: boolean;
   createdAt: number;
   updatedAt: number;
 }
@@ -194,6 +202,15 @@ export interface GameView {
   yourCard: boolean | null;
 }
 
+export interface DebugView {
+  enabled: boolean;
+  xray: boolean;
+  forcedRole: RoleId | null;
+  /** Populated only with xray on, in a debug room. */
+  allRoles: Record<string, RoleId> | null;
+  bots: string[];
+}
+
 export interface View {
   code: string;
   phase: Phase;
@@ -205,6 +222,7 @@ export interface View {
   waitingOn: string[];
   waitingLabel: string | null;
   scores: Scoreboard;
+  debug: DebugView;
   /** Derived from your own role. Kept behind the hold-to-reveal card. */
   insights: Insight[];
   /** Deductions anyone at the table could make. Safe to show openly. */
@@ -228,6 +246,12 @@ export type ClientMessage =
   | { t: "assassinate"; targetId: string }
   | { t: "playAgain" }
   | { t: "abandon" }
+  | { t: "debugFill"; count: number }
+  | { t: "debugBecomeHost" }
+  | { t: "debugForceRole"; role: RoleId | null }
+  | { t: "debugXray"; on: boolean }
+  | { t: "debugStep" }
+  | { t: "debugPurge" }
   | { t: "rename"; name: string }
   | { t: "kick"; playerId: string }
   | { t: "transferHost"; playerId: string }

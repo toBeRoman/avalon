@@ -94,6 +94,8 @@ Browser ──HTTP──▶ Worker (src/server/index.ts)
 | `src/client/screens/` | ~990 | One file per phase group. |
 | `test/engine.test.ts` | 468 | 27 unit tests over the engine. |
 | `test/e2e.mjs` | 335 | Seven real clients, two full games, against a running server. |
+| `test/offline.browser.mjs` | ~190 | Pass-and-play with the network cut. Needs Playwright on demand. |
+| `test/debug.browser.mjs` | ~70 | The debug room end to end. Needs Playwright on demand. |
 
 ---
 
@@ -228,6 +230,15 @@ rendered *inside* the hold-to-reveal overlay, never on an open screen. A test as
 invariant directly: a player's private notes may only name someone their own card entitles
 them to know about. Everything in there is a fact about the game so far — deliberately no
 speculation about intent, because a confidently wrong nudge is worse than no nudge.
+
+**On debug mode**
+
+Room code `TOBY` is a reserved debug room: bots, table size, forced roles and x-ray. It is
+documented in full in [DEBUG.md](DEBUG.md). Two things to know if you touch it: every debug
+action re-checks `room.debug` on the *server*, so hiding the panel is not the protection; and
+`room.debug` can only ever be true for that one code, because `O` is not in the room-code
+alphabet and a random code cannot collide with it. Bots act only through `applyAction`, so
+they cannot do anything a phone could not.
 
 **Smaller things**
 4. `settle()` has a guard against advancing a room where nobody has acked, so a room whose

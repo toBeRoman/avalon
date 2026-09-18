@@ -73,6 +73,9 @@ function newTable(names: string[]): RoomState {
     game: null,
     claim: null,
     scores: emptyScoreboard(),
+    debug: false,
+    forcedRole: null,
+    xray: false,
     createdAt: Date.now(),
     updatedAt: Date.now(),
   };

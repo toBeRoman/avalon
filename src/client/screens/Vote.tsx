@@ -61,13 +61,13 @@ export function VoteScreen({
 
       <Sticky>
         <Button
-          variant={yourVote === true ? "good" : "ghost"}
+          variant={yourVote === false ? "ghost" : "good"}
           onClick={() => send({ t: "vote", approve: true })}
         >
           {yourVote === true ? "Approving ✓" : "Approve"}
         </Button>
         <Button
-          variant={yourVote === false ? "evil" : "ghost"}
+          variant={yourVote === true ? "ghost" : "evil"}
           disabled={youProposed}
           onClick={() => send({ t: "vote", approve: false })}
         >

@@ -1,3 +1,4 @@
+import { DEBUG_CODE } from "../shared/rules";
 import type { Env } from "./room";
 export { RoomDO } from "./room";
 
@@ -61,6 +62,11 @@ export default {
     if (action === "/join" && request.method === "POST") {
       const { name } = (await request.json().catch(() => ({}))) as { name?: string };
       if (!name?.trim()) return fail("Pick a name first.");
+      // The debug room springs into existence for whoever asks for it first.
+      if (code === DEBUG_CODE && !(await room.exists())) {
+        const created = await room.create(code, name);
+        if (!("error" in created)) return json({ code, ...created });
+      }
       const result = await room.join(name);
       if ("error" in result) return fail(result.error);
       return json({ code, ...result });

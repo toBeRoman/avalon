@@ -6,6 +6,7 @@ import {
   hintFor,
   knowledgeFor,
   MAX_PLAYERS,
+  MIN_PLAYERS,
   sideOf,
   teamSize,
   validate,
@@ -60,6 +61,15 @@ export function startGame(room: RoomState, rng: Rng = defaultRng): void {
     room.players.map((p) => p.id),
     rng,
   );
+
+  // Debug rooms can pin the host's card so a particular role is easy to test.
+  if (room.debug && room.forcedRole) {
+    const wanted = deck.indexOf(room.forcedRole);
+    const hostSeat = order.indexOf(room.hostId);
+    if (wanted >= 0 && hostSeat >= 0) {
+      [deck[wanted], deck[hostSeat]] = [deck[hostSeat], deck[wanted]];
+    }
+  }
 
   const roles: Record<string, string> = {};
   order.forEach((id, i) => (roles[id] = deck[i]));
@@ -415,6 +425,53 @@ export function applyAction(
       return null;
     }
 
+    case "debugFill": {
+      if (!room.debug) return "Debug controls are only available in the debug room.";
+      return fillWithBots(room, msg.count);
+    }
+
+    case "debugBecomeHost": {
+      if (!room.debug) return "Debug controls are only available in the debug room.";
+      room.hostId = playerId;
+      return null;
+    }
+
+    case "debugForceRole": {
+      if (!room.debug) return "Debug controls are only available in the debug room.";
+      if (room.phase !== "lobby") return "Pick a role to force from the lobby.";
+      room.forcedRole = msg.role;
+      return null;
+    }
+
+    case "debugXray": {
+      if (!room.debug) return "Debug controls are only available in the debug room.";
+      room.xray = msg.on;
+      return null;
+    }
+
+    case "debugPurge": {
+      if (!room.debug) return "Debug controls are only available in the debug room.";
+      // The debug room is long-lived, so abandoned seats collect in it.
+      const before = room.players.length;
+      room.players = room.players.filter((p) => p.connected || p.id === playerId);
+      for (const id of Object.keys(room.tokens)) {
+        if (!room.players.some((p) => p.id === id)) delete room.tokens[id];
+      }
+      if (!room.players.some((p) => p.id === room.hostId)) room.hostId = playerId;
+      if (room.phase !== "lobby") {
+        room.game = null;
+        room.phase = "lobby";
+      }
+      return before === room.players.length ? "Nothing to clear." : null;
+    }
+
+    case "debugStep": {
+      if (!room.debug) return "Debug controls are only available in the debug room.";
+      // Bots normally run automatically; this nudges them when a human is stuck.
+      runBots(room);
+      return null;
+    }
+
     case "kick": {
       if (!isHost) return "Only the host can remove players.";
       if (room.phase !== "lobby") return "You can only remove players in the lobby.";
@@ -501,6 +558,155 @@ function waiting(room: RoomState): { ids: string[]; label: string | null } {
   }
 }
 
+
+
+/* ------------------------------------------------------------------ */
+/* Bots — debug rooms only                                             */
+/* ------------------------------------------------------------------ */
+
+const BOT_NAMES = [
+  "Gareth",
+  "Elaine",
+  "Kay",
+  "Bors",
+  "Lynette",
+  "Tristan",
+  "Isolde",
+  "Lamorak",
+  "Ragnelle",
+];
+
+/** Adds or removes bot seats until the room holds `count` players. */
+export function fillWithBots(room: RoomState, count: number): string | null {
+  if (!room.debug) return "Bots are only available in the debug room.";
+  if (room.phase !== "lobby") return "Change the table size from the lobby.";
+  const target = Math.max(MIN_PLAYERS, Math.min(MAX_PLAYERS, Math.round(count)));
+
+  // Never remove a real person to hit the number.
+  const humans = room.players.filter((p) => !p.bot);
+  if (target < humans.length) return `There are already ${humans.length} real players here.`;
+
+  room.players = room.players.filter((p) => !p.bot);
+  const taken = new Set(room.players.map((p) => p.name.toLowerCase()));
+  for (let index = 0; room.players.length < target; index++) {
+    const name = BOT_NAMES[index % BOT_NAMES.length];
+    if (taken.has(name.toLowerCase())) continue;
+    taken.add(name.toLowerCase());
+    room.players.push({ id: `bot-${index}`, name, connected: true, bot: true });
+  }
+  return null;
+}
+
+const isBot = (room: RoomState, id: string) => !!room.players.find((p) => p.id === id)?.bot;
+
+function pick<T>(items: T[], rng: Rng): T {
+  return items[Math.floor(rng() * items.length)];
+}
+
+/**
+ * Plays one bot action. Returns true if a bot did something, so the caller can
+ * keep stepping until the game is waiting on a human again.
+ */
+function stepBots(room: RoomState, rng: Rng): boolean {
+  const g = room.game;
+  if (!g || room.phase === "lobby" || room.phase === "ended") return false;
+
+  const act = (id: string, msg: ClientMessage) => {
+    applyAction(room, id, msg, rng);
+    return true;
+  };
+
+  switch (room.phase) {
+    case "roleReveal":
+    case "voteReveal":
+    case "questReveal": {
+      const waiting = room.players.find(
+        (p) => p.bot && p.connected && !g.acks.includes(p.id),
+      );
+      return waiting ? act(waiting.id, { t: "ack" }) : false;
+    }
+
+    case "proposal": {
+      const leader = g.order[g.leaderIdx];
+      if (!isBot(room, leader)) return false;
+      const size = teamSize(room.players.length, g.round);
+      const others = g.order.filter((id) => id !== leader);
+      const team = [leader];
+      // Leaders put themselves on, then fill at random.
+      while (team.length < size && others.length) {
+        const chosen = pick(others, rng);
+        others.splice(others.indexOf(chosen), 1);
+        team.push(chosen);
+      }
+      return act(leader, { t: "propose", team });
+    }
+
+    case "vote": {
+      const waiting = room.players.find((p) => p.bot && !(p.id in g.proposal!.votes));
+      if (!waiting) return false;
+      // The proposer is locked into approving; everyone else mostly approves,
+      // with the odd rejection so the vote track actually gets used.
+      const forced = g.proposal!.leaderId === waiting.id;
+      const approve = forced || g.attempt >= 4 || rng() > 0.18;
+      return act(waiting.id, { t: "vote", approve });
+    }
+
+    case "quest": {
+      const waiting = g.proposal!.team.find(
+        (id) => isBot(room, id) && !(id in g.questCards),
+      );
+      if (!waiting) return false;
+      const evil = sideOf(g.roles[waiting]) === "evil";
+      // Evil sinks a quest most of the time, but not always — one fail is enough.
+      const fails = g.proposal!.team.filter(
+        (id) => id in g.questCards && g.questCards[id] === false,
+      ).length;
+      const needed = failsRequired(room.players.length, g.round);
+      const success = !evil || (fails >= needed ? rng() > 0.5 : rng() > 0.25);
+      return act(waiting, { t: "quest", success });
+    }
+
+    case "lady": {
+      const holder = g.lady!.holderId;
+      if (!isBot(room, holder)) return false;
+      const targets = g.order.filter(
+        (id) => id !== holder && !g.lady!.visited.includes(id),
+      );
+      return targets.length ? act(holder, { t: "lady", targetId: pick(targets, rng) }) : false;
+    }
+
+    case "ladyReveal": {
+      const holder = g.lady!.holderId;
+      return isBot(room, holder) ? act(holder, { t: "ack" }) : false;
+    }
+
+    case "assassin": {
+      const assassin = g.order.find((id) => g.roles[id] === "assassin");
+      if (!assassin || !isBot(room, assassin)) return false;
+      // Guess whoever steered the most successful quests, which is a fair proxy.
+      const suspects = g.order.filter(
+        (id) => id !== assassin && sideOf(g.roles[id]) === "good",
+      );
+      const scored = suspects
+        .map((id) => ({
+          id,
+          weight: g.quests.filter((q) => q.success && q.team.includes(id)).length,
+        }))
+        .sort((a, b) => b.weight - a.weight);
+      const target = scored.length ? scored[0].id : pick(g.order.filter((id) => id !== assassin), rng);
+      return act(assassin, { t: "assassinate", targetId: target });
+    }
+
+    default:
+      return false;
+  }
+}
+
+/** Runs bots until the game is waiting on a human again. */
+export function runBots(room: RoomState, rng: Rng = defaultRng): void {
+  if (!room.debug) return;
+  for (let guard = 0; guard < 400 && stepBots(room, rng); guard++);
+}
 
 /* ------------------------------------------------------------------ */
 /* Insights                                                            */
@@ -817,6 +1023,14 @@ export function viewFor(room: RoomState, playerId: string): View {
     waitingLabel: w.label,
     claim: room.hostId === playerId ? room.claim : null,
     scores: room.scores,
+    debug: {
+      enabled: room.debug,
+      xray: room.debug && room.xray,
+      forcedRole: room.forcedRole,
+      // Only ever populated in the reserved debug room, with xray switched on.
+      allRoles: room.debug && room.xray && g ? g.roles : null,
+      bots: room.players.filter((p) => p.bot).map((p) => p.id),
+    },
     insights: notes.private,
     tableInsights: notes.table,
   };

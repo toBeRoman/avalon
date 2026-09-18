@@ -14,7 +14,12 @@ export function QuestBoard({ view }: { view: View }) {
   if (!game) return null;
 
   return (
-    <div className="flex items-center justify-center gap-2">
+    <div className="relative flex items-center justify-center gap-2">
+      {/* One track through the circles, so the quests read as a journey. */}
+      <span
+        aria-hidden
+        className="rule-in pointer-events-none absolute left-6 right-6 top-5 h-px bg-linear-to-r from-transparent via-gold/30 to-transparent"
+      />
       {game.board.map((slot, index) => {
         const round = index + 1;
         const result = game.quests.find((q) => q.round === round);
@@ -31,7 +36,7 @@ export function QuestBoard({ view }: { view: View }) {
         return (
           <div key={round} className="flex flex-col items-center gap-1">
             <div
-              className={`flex h-10 w-10 items-center justify-center rounded-full border-2 font-display text-lg transition-colors duration-500 ${tone} ${
+              className={`relative z-[1] flex h-10 w-10 items-center justify-center rounded-full border-2 bg-surface font-display text-lg transition-colors duration-500 ${tone} ${
                 current ? "pulse" : ""
               } ${result ? "board-pop" : ""}`}
             >

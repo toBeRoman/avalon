@@ -71,14 +71,14 @@ export function QuestScreen({
       ) : (
         <Sticky>
           <Button
-            variant={card === true ? "good" : "ghost"}
+            variant={card === false ? "ghost" : "good"}
             onClick={() => send({ t: "quest", success: true })}
           >
             {card === true ? "Playing Success ✓" : "Play Success"}
           </Button>
           {view.you.mayFail ? (
             <Button
-              variant={card === false ? "evil" : "ghost"}
+              variant={card === true ? "ghost" : "evil"}
               onClick={() => send({ t: "quest", success: false })}
             >
               {card === false ? "Playing Fail ✓" : "Play Fail"}

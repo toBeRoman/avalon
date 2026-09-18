@@ -41,6 +41,12 @@ proposals, votes and quests, and handles the Assassin at the end.
 - The screen is kept awake during a game, and it is all dark and warm so it does not blow out
   anybody's night vision.
 
+## Testing it on your own
+
+Join with the room code `TOBY` for a debug room: fill the seats with bots, set the table to
+any size from five to ten, choose the roles, deal yourself whichever card you want to test,
+and switch on x-ray to see everyone's hand. See [DEBUG.md](DEBUG.md).
+
 ## How it is built
 
 One Cloudflare Worker serves both the React app and the game server. Each room is a Durable

@@ -11,17 +11,123 @@ import type { Insight, Player, Side } from "../shared/types";
 import { ART } from "./art";
 
 /* ------------------------------------------------------------------ */
+/* Frames                                                              */
+/* ------------------------------------------------------------------ */
+
+type FrameTone = "gold" | "ember" | "good" | "evil" | "quiet" | "engraved" | "engravedLight";
+
+const CORNER_TONE: Record<FrameTone, string> = {
+  gold: "border-gold/70",
+  ember: "border-ember/70",
+  good: "border-good/70",
+  evil: "border-evil/70",
+  quiet: "border-edge-bright",
+  // Cut into a filled button rather than drawn on top of it.
+  engraved: "border-ink/45",
+  engravedLight: "border-parchment/45",
+};
+
+/**
+ * Four bracket corners drawn with borders rather than an image, so they stay
+ * crisp at any size and cost nothing to load on a bad connection.
+ */
+export function Corners({
+  tone = "gold",
+  size = "sm",
+  animate = true,
+}: {
+  tone?: FrameTone;
+  size?: "sm" | "lg";
+  animate?: boolean;
+}) {
+  const edge = CORNER_TONE[tone];
+  const box = size === "lg" ? "h-3.5 w-3.5" : "h-2.5 w-2.5";
+  const corners = [
+    "left-0 top-0 border-l border-t rounded-tl-[3px]",
+    "right-0 top-0 border-r border-t rounded-tr-[3px]",
+    "left-0 bottom-0 border-l border-b rounded-bl-[3px]",
+    "right-0 bottom-0 border-r border-b rounded-br-[3px]",
+  ];
+  return (
+    <span aria-hidden className="pointer-events-none absolute inset-0">
+      {corners.map((position, index) => (
+        <span
+          key={position}
+          style={animate ? { animationDelay: `${index * 55}ms` } : undefined}
+          className={`absolute ${box} ${position} ${edge} ${animate ? "corner" : ""}`}
+        />
+      ))}
+    </span>
+  );
+}
+
+/** A framed container: corner brackets over a panel. */
+export function Frame({
+  children,
+  tone = "quiet",
+  className = "",
+}: {
+  children: ReactNode;
+  tone?: FrameTone;
+  className?: string;
+}) {
+  return (
+    <div className={`relative ${className}`}>
+      {children}
+      <Corners tone={tone} />
+    </div>
+  );
+}
+
+/** The crown emblem with a rule running out either side of it. */
+export function Divider({ crown = true }: { crown?: boolean }) {
+  const rule = (delay: number) => (
+    <span
+      className="rule-in h-px flex-1 bg-linear-to-r from-transparent via-gold/50 to-transparent"
+      style={{ animationDelay: `${delay}ms` }}
+    />
+  );
+  return (
+    <div aria-hidden className="flex items-center gap-3 py-1">
+      {rule(120)}
+      {crown ? (
+        <img
+          src={ART.crown}
+          alt=""
+          className="crown-in h-4 w-4 shrink-0 opacity-80"
+          draggable={false}
+        />
+      ) : (
+        <span className="crown-in h-1.5 w-1.5 rotate-45 bg-gold/70" />
+      )}
+      {rule(120)}
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
 /* Buttons                                                             */
 /* ------------------------------------------------------------------ */
 
 type Variant = "primary" | "ghost" | "good" | "evil" | "quiet";
 
 const VARIANTS: Record<Variant, string> = {
-  primary: "bg-ember text-ink border-ember active:bg-ember-dim",
-  good: "bg-good text-ink border-good active:brightness-90",
-  evil: "bg-evil text-parchment border-evil active:brightness-90",
-  ghost: "bg-transparent text-parchment border-edge-bright active:bg-raised",
+  primary:
+    "bg-ember text-ink border-ember/80 shadow-[inset_0_1px_0_rgba(255,244,214,0.45),inset_0_-2px_0_rgba(90,52,10,0.35)] active:bg-ember-dim",
+  good:
+    "bg-good text-ink border-good/80 shadow-[inset_0_1px_0_rgba(255,255,255,0.35),inset_0_-2px_0_rgba(20,50,80,0.3)] active:brightness-90",
+  evil:
+    "bg-evil text-parchment border-evil/80 shadow-[inset_0_1px_0_rgba(255,220,214,0.3),inset_0_-2px_0_rgba(70,15,10,0.4)] active:brightness-90",
+  ghost: "bg-raised/60 text-parchment border-edge-bright active:bg-raised",
   quiet: "bg-transparent text-dim border-transparent active:bg-raised",
+};
+
+const BUTTON_CORNER: Record<Variant, FrameTone> = {
+  primary: "engraved",
+  good: "engraved",
+  evil: "engravedLight",
+  ghost: "gold",
+  quiet: "quiet",
 };
 
 export function Button({
@@ -31,6 +137,7 @@ export function Button({
   disabled,
   full = true,
   small,
+  plain,
 }: {
   children: ReactNode;
   onClick?: () => void;
@@ -38,22 +145,34 @@ export function Button({
   disabled?: boolean;
   full?: boolean;
   small?: boolean;
+  /** Drops the frame, for dense rows where brackets would be noise. */
+  plain?: boolean;
 }) {
+  // A framed, lit button for the real actions; a plain one for nav and asides.
+  const framed = !small && !plain && variant !== "quiet" && !disabled;
   return (
     <button
       type="button"
       onClick={onClick}
       disabled={disabled}
       className={[
-        "rounded-xl border font-semibold tracking-wide transition active:scale-[0.985]",
+        "relative rounded-xl border font-semibold tracking-wide transition active:scale-[0.985]",
         // Comfortably thumb-sized in the dark.
         small ? "px-4 py-2 text-sm" : "px-5 py-4 text-base min-h-14",
         full ? "w-full" : "",
         disabled ? "opacity-35" : "",
+        framed ? "sheen" : "",
         VARIANTS[variant],
       ].join(" ")}
     >
-      {children}
+      {framed && variant === "primary" ? (
+        <span
+          aria-hidden
+          className="glow-layer pointer-events-none absolute -inset-px rounded-xl shadow-[0_0_22px_-3px_rgba(232,150,60,0.6)]"
+        />
+      ) : null}
+      <span className="relative z-[2]">{children}</span>
+      {framed ? <Corners tone={BUTTON_CORNER[variant]} /> : null}
     </button>
   );
 }
@@ -70,15 +189,34 @@ export function Title({ children, sub }: { children: ReactNode; sub?: ReactNode 
   return (
     <div className="space-y-1">
       <h2 className="font-display text-2xl leading-tight text-parchment">{children}</h2>
-      {sub ? <p className="text-sm leading-snug text-dim">{sub}</p> : null}
+      <span
+        aria-hidden
+        className="rule-in block h-px w-16 origin-left bg-linear-to-r from-gold/70 to-transparent"
+      />
+      {sub ? <p className="pt-1 text-sm leading-snug text-dim">{sub}</p> : null}
     </div>
   );
 }
 
-export function Panel({ children, tone }: { children: ReactNode; tone?: Side | "neutral" }) {
+export function Panel({
+  children,
+  tone,
+  bare,
+}: {
+  children: ReactNode;
+  tone?: Side | "neutral";
+  /** Skips the corner brackets where a panel is purely a container. */
+  bare?: boolean;
+}) {
   const ring =
     tone === "good" ? "border-good/50" : tone === "evil" ? "border-evil/50" : "border-edge";
-  return <div className={`rounded-2xl border ${ring} bg-surface p-4`}>{children}</div>;
+  const corner: FrameTone = tone === "good" ? "good" : tone === "evil" ? "evil" : "gold";
+  return (
+    <div className={`relative rounded-2xl border ${ring} bg-surface p-4`}>
+      {children}
+      {bare ? null : <Corners tone={corner} />}
+    </div>
+  );
 }
 
 /**
@@ -188,7 +326,7 @@ export function PlayerButton({
       disabled={disabled}
       style={delay === undefined ? undefined : { animationDelay: `${delay * 45}ms` }}
       className={[
-        "flex w-full items-center gap-3 rounded-xl border px-4 py-3 text-left transition min-h-14 active:scale-[0.99]",
+        "relative flex w-full items-center gap-3 rounded-xl border px-4 py-3 text-left transition min-h-14 active:scale-[0.99]",
         delay === undefined ? "" : "stagger",
         selected
           ? "border-ember bg-ember/15 text-parchment"
@@ -207,6 +345,7 @@ export function PlayerButton({
         {note ? <span className="block text-xs text-dim">{note}</span> : null}
       </span>
       {badge}
+      {selected ? <Corners tone="ember" /> : null}
     </button>
   );
 }
@@ -284,7 +423,7 @@ export function HoldToReveal({
       <div
         onPointerDown={start}
         onContextMenu={(e) => e.preventDefault()}
-        className="relative min-h-64 select-none overflow-hidden rounded-2xl border border-edge-bright"
+        className="relative min-h-64 select-none overflow-hidden rounded-2xl border border-gold/40"
         style={{ WebkitUserSelect: "none", WebkitTouchCallout: "none" }}
       >
         <img
@@ -301,6 +440,7 @@ export function HoldToReveal({
             Nobody else can see this. Keep it that way.
           </span>
         </div>
+        <Corners tone="gold" size="lg" />
       </div>
 
       {/*
@@ -315,7 +455,7 @@ export function HoldToReveal({
                 <img
                   src={art}
                   alt=""
-                  className="absolute inset-0 h-full w-full object-cover object-top"
+                  className="drift absolute inset-0 h-full w-full object-cover object-top"
                   draggable={false}
                 />
               ) : null}
@@ -337,6 +477,13 @@ export function HoldToReveal({
                 <p className="shrink-0 pt-4 text-center text-xs text-parchment/60">
                   Lift your finger to hide this
                 </p>
+              </div>
+              <span
+                aria-hidden
+                className="pointer-events-none absolute inset-3 rounded-2xl border border-gold/30"
+              />
+              <div className="pointer-events-none absolute inset-3">
+                <Corners tone="gold" size="lg" />
               </div>
             </div>,
             document.body,

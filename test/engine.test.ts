@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import {
   applyAction,
   emptyScoreboard,
+  fillWithBots,
+  runBots,
   startGame,
   viewFor,
   type Rng,
@@ -17,7 +19,7 @@ import {
   teamSize,
   validate,
 } from "../src/shared/rules";
-import type { Options, RoleId, RoomState } from "../src/shared/types";
+import type { ClientMessage, Options, RoleId, RoomState } from "../src/shared/types";
 
 /** Deterministic RNG so a failing test is reproducible. */
 function seeded(seed: number): Rng {
@@ -30,7 +32,10 @@ function seeded(seed: number): Rng {
   };
 }
 
-function makeRoom(n: number, options: Partial<Options> = {}): RoomState {
+function makeRoom(
+  n: number,
+  options: Partial<Options> & { debug?: boolean } = {},
+): RoomState {
   const players = Array.from({ length: n }, (_, i) => ({
     id: `p${i}`,
     name: `P${i}`,
@@ -46,6 +51,9 @@ function makeRoom(n: number, options: Partial<Options> = {}): RoomState {
     game: null,
     claim: null,
     scores: emptyScoreboard(),
+    debug: options.debug ?? false,
+    forcedRole: null,
+    xray: false,
     createdAt: 0,
     updatedAt: 0,
   };
@@ -544,6 +552,83 @@ describe("the night's scoreboard", () => {
     applyAction(room, assassin, { t: "assassinate", targetId: innocent });
     expect(room.scores).toMatchObject({ games: 2, evil: 1, good: 1 });
     expect(Object.values(room.scores.players).every((p) => p.played === 2)).toBe(true);
+  });
+});
+
+describe("the debug room", () => {
+  it("refuses every debug action in an ordinary room", () => {
+    const room = makeRoom(5);
+    const host = room.hostId;
+    for (const message of [
+      { t: "debugFill", count: 8 },
+      { t: "debugBecomeHost" },
+      { t: "debugForceRole", role: "merlin" },
+      { t: "debugXray", on: true },
+      { t: "debugStep" },
+      { t: "debugPurge" },
+    ] as ClientMessage[]) {
+      expect(applyAction(room, host, message)).toContain("debug room");
+    }
+    expect(room.players).toHaveLength(5);
+    expect(room.xray).toBe(false);
+  });
+
+  it("never puts other roles in an ordinary room's payload, even with xray set", () => {
+    const room = makeRoom(5);
+    // Force the flag on directly; only a debug room should ever honour it.
+    room.xray = true;
+    startGame(room, seeded(50));
+    for (const player of room.players) {
+      const view = viewFor(room, player.id);
+      expect(view.debug.enabled).toBe(false);
+      expect(view.debug.xray).toBe(false);
+      expect(view.debug.allRoles).toBeNull();
+    }
+  });
+
+  it("fills a debug table with bots without evicting anyone real", () => {
+    const room = makeRoom(5, { debug: true });
+    expect(fillWithBots(room, 9)).toBeNull();
+    expect(room.players).toHaveLength(9);
+    expect(room.players.filter((p) => p.bot)).toHaveLength(4);
+    // Shrinking below the number of humans is refused rather than kicking someone.
+    expect(fillWithBots(room, 5)).toBeNull();
+    expect(room.players).toHaveLength(5);
+    expect(room.players.filter((p) => p.bot)).toHaveLength(0);
+  });
+
+  it("deals the host their forced role", () => {
+    const room = makeRoom(7, { debug: true, mordred: true });
+    room.forcedRole = "mordred";
+    startGame(room, seeded(51));
+    expect(room.game!.roles[room.hostId]).toBe("mordred");
+  });
+
+  it("lets bots play a whole game without a human", () => {
+    const room = makeRoom(7, { debug: true, mordred: true, lady: true });
+    for (const player of room.players) player.bot = true;
+    startGame(room, seeded(52));
+    runBots(room, seeded(53));
+    expect(room.phase).toBe("ended");
+    expect(room.game!.outcome).not.toBeNull();
+    // And the result is a legal one, reached through the ordinary rules.
+    const succeeded = room.game!.quests.filter((q) => q.success).length;
+    const failed = room.game!.quests.length - succeeded;
+    expect(succeeded === 3 || failed === 3 || room.game!.log.some((e) => e.k === "hammer")).toBe(
+      true,
+    );
+  });
+
+  it("shows every role only in a debug room with xray on", () => {
+    const room = makeRoom(7, { debug: true });
+    room.xray = true;
+    startGame(room, seeded(54));
+    const view = viewFor(room, room.hostId);
+    expect(view.debug.enabled).toBe(true);
+    expect(Object.keys(view.debug.allRoles!)).toHaveLength(7);
+
+    room.xray = false;
+    expect(viewFor(room, room.hostId).debug.allRoles).toBeNull();
   });
 });
 

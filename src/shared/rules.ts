@@ -1,5 +1,11 @@
 import type { Options, OptionId, RoleId, Side } from "./types";
 
+/**
+ * The reserved debug room. "O" is not in the room-code alphabet, so this can
+ * never be handed out by accident — only somebody who types it gets a debug room.
+ */
+export const DEBUG_CODE = "TOBY";
+
 export const MIN_PLAYERS = 5;
 export const MAX_PLAYERS = 10;
 
