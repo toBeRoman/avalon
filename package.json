@@ -8,7 +8,8 @@
     "preview": "vite preview",
     "check": "tsc -b && vitest run",
     "test": "vitest run",
-    "deploy": "vite build && wrangler deploy"
+    "deploy": "vite build && wrangler deploy",
+    "test:e2e": "node test/e2e.mjs"
   },
   "keywords": [],
   "author": "",
