@@ -9,8 +9,8 @@ This document is for a team picking the project up cold.
 | **Repo** | https://github.com/toBeRoman/avalon (public) |
 | **Platform** | Cloudflare Workers + Durable Objects, free plan |
 | **Stack** | React 19, Vite 8, TypeScript, Tailwind 4 |
-| **Size** | ~4,400 lines including tests |
-| **Status** | Complete and deployed. Verified end to end against production. |
+| **Size** | ~6,900 lines including tests |
+| **Status** | Complete and deployed. 45 unit tests; every suite verified against production. |
 
 ---
 
@@ -83,19 +83,19 @@ Browser ──HTTP──▶ Worker (src/server/index.ts)
 
 | File | Lines | What it is |
 |---|---|---|
-| `src/shared/rules.ts` | 232 | Official quest tables, evil counts, deck building, lobby validation, what each role knows, coaching copy. Pure, no I/O. |
-| `src/shared/types.ts` | 206 | Every type crossing the wire, including the redacted `View`. |
-| `src/server/engine.ts` | 545 | **The heart.** State machine and `viewFor()` redaction. Pure functions over `RoomState`. |
-| `src/server/room.ts` | 236 | Durable Object: persistence, sockets, connection tracking, seat handover, expiry. |
-| `src/server/index.ts` | 85 | HTTP router: create / join / claim / describe / ws. |
+| `src/shared/rules.ts` | 238 | Official quest tables, evil counts, deck building, lobby validation, what each role knows, coaching copy. Pure, no I/O. |
+| `src/shared/types.ts` | 263 | Every type crossing the wire, including the redacted `View`. |
+| `src/shared/engine.ts` | 1037 | **The heart.** State machine, `viewFor()` redaction, insights and bots. Pure functions over `RoomState`. |
+| `src/server/room.ts` | 271 | Durable Object: persistence, sockets, connection tracking, seat handover, expiry. |
+| `src/server/index.ts` | 91 | HTTP router: create / join / claim / describe / ws. |
 | `src/client/useRoom.ts` | 152 | WebSocket hook with reconnect, plus wake lock and vibration. |
-| `src/client/localGame.ts` | ~210 | Pass-and-play: drives the shared engine in the browser and decides whose hands the phone belongs in. |
-| `src/client/App.tsx` | 374 | Shell: chrome, phase routing, sheets, room management. |
+| `src/client/localGame.ts` | 207 | Pass-and-play: drives the shared engine in the browser and decides whose hands the phone belongs in. |
+| `src/client/App.tsx` | 569 | Shell: chrome, phase routing, sheets, room management. |
 | `src/client/screens/` | ~990 | One file per phase group. |
-| `test/engine.test.ts` | 468 | 27 unit tests over the engine. |
-| `test/e2e.mjs` | 335 | Seven real clients, two full games, against a running server. |
-| `test/offline.browser.mjs` | ~190 | Pass-and-play with the network cut. Needs Playwright on demand. |
-| `test/debug.browser.mjs` | ~70 | The debug room end to end. Needs Playwright on demand. |
+| `test/engine.test.ts` | 799 | 27 unit tests over the engine. |
+| `test/e2e.mjs` | 361 | Seven real clients, two full games, against a running server. |
+| `test/offline.browser.mjs` | 107 | Pass-and-play with the network cut. Needs Playwright on demand. |
+| `test/debug.browser.mjs` | 77 | The debug room end to end. Needs Playwright on demand. |
 
 ---
 
@@ -103,7 +103,7 @@ Browser ──HTTP──▶ Worker (src/server/index.ts)
 
 **The client is never trusted, and never receives anything it must not show.**
 
-`viewFor(room, playerId)` in `src/server/engine.ts` builds a *separate* payload per socket.
+`viewFor(room, playerId)` in `src/shared/engine.ts` builds a *separate* payload per socket.
 `broadcast()` in `room.ts` calls it once per connection. Specifically:
 
 - `roles` is never sent. Each player gets only `you.role` plus the player ids their role is
@@ -115,11 +115,11 @@ Browser ──HTTP──▶ Worker (src/server/index.ts)
   inspection happened.
 - All roles are revealed only when `phase === "ended"`.
 
-Five unit tests assert this, including one that walks every string value in the payload and
+Eight unit tests assert this, including one that walks every string value in the payload and
 fails if another player's role appears. **If you add a field to `GameView`, add a test.**
 
 Rule enforcement is also entirely server-side (`applyAction`). The client hides the "Fail"
-button from good players, but the server independently refuses it. `test/e2e.mjs` fires five
+button from good players, but the server independently refuses it. `test/e2e.mjs` fires six
 illegal actions over a live socket and asserts each is rejected.
 
 This is why the repository can be public without spoiling games.
